@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import uuid
 from typing import Optional, Dict, Any
 import traceback
-from app.graph import workflow, workflow_direct
+from app.graph import workflow
 from app.validators import validate_user_input
 from app.state import DocState
 from app.session_store import get_session, save_session, create_session, delete_session
@@ -80,8 +80,8 @@ class ConversationGenerateRequest(BaseModel):
 
 class ConversationGenerateResponse(BaseModel):
     session_id: str
-    outline: str
     documentation: str
+    doc_path: Optional[str] = None
     message: str
 
 
@@ -89,7 +89,8 @@ class ConversationGenerateResponse(BaseModel):
 def generate_doc(req: GenerateRequest):
     """
     Generates documentation directly (without dialog).
-    For dialog mode use /conversation/* endpoints.
+    Note: This endpoint now uses the conversation workflow with a single answer.
+    For full dialog mode use /conversation/* endpoints.
     """
     try:
         is_valid, error_msg = validate_user_input(req.query)
@@ -103,25 +104,24 @@ def generate_doc(req: GenerateRequest):
             )
 
         session_id = req.session_id or str(uuid.uuid4())
-        # Use workflow without dialog for backward compatibility
+        # Use workflow with single answer (skip dialog)
         init_state = {
             "user_input": req.query,
             "project_name": req.project_name,
             "session_id": session_id,
             "history": [],
             "system_context": None,
-            "doc_outline": None,
-            "draft_doc": None,
-            "refined_doc": None,
+            "conversation_complete": True,  # Skip dialog
+            "collected_requirements": req.query,  # Use query as requirements
         }
 
-        result = workflow_direct.invoke(init_state)
+        result = workflow.invoke(init_state)
 
         # Result is a dict, so we access it as dict
         return GenerateResponse(
             session_id=session_id,
-            outline=result.get("doc_outline") or "",
-            documentation=result.get("refined_doc") or result.get("draft_doc") or "",
+            outline="",  # No outline in simplified workflow
+            documentation=result.get("documentation") or "",
             message="Documentation generated and saved to txt file.",
         )
     except Exception as e:
@@ -150,9 +150,6 @@ def start_conversation(req: ConversationStartRequest):
             "session_id": session_id,
             "history": [],
             "system_context": None,
-            "doc_outline": None,
-            "draft_doc": None,
-            "refined_doc": None,
             "answers": {},
             "current_question": 0,
             "current_question_text": None,
@@ -256,7 +253,7 @@ def generate_from_conversation(req: ConversationGenerateRequest):
                 detail="Session not found. Start a new dialog via /conversation/start"
             )
         
-        # If dialog not complete and not force - complete it
+        # If dialog not complete and force - complete it
         if not session_state.get("conversation_complete", False) and req.force:
             session_state["conversation_complete"] = True
             if session_state.get("answers"):
@@ -286,8 +283,8 @@ def generate_from_conversation(req: ConversationGenerateRequest):
         
         return ConversationGenerateResponse(
             session_id=req.session_id,
-            outline=result.get("doc_outline") or "",
-            documentation=result.get("refined_doc") or result.get("draft_doc") or "",
+            documentation=result.get("documentation") or "",
+            doc_path=result.get("doc_path"),
             message="Documentation generated and saved to txt file.",
         )
     except HTTPException:

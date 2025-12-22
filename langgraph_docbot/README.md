@@ -12,14 +12,14 @@
 ## ✨ Features
 
 - 💬 **Conversational Requirements Agent** - Multi-turn dialog for gathering requirements before documentation generation
-- 🤖 **Multi-agent Architecture** - LangGraph with multiple agents (conversation, outline, draft, refine)
-- 🧠 **Gemini AI** - Powered by Google Gemini via langchain-google-genai
+- 📋 **JSON-based Dialog Structure** - Questions loaded from JSON file, easy to customize
+- 🤖 **Simplified Architecture** - LangGraph workflow: Conversation → Documentation → Save
+- 🧠 **Gemini 2.5-pro** - Powered by Google Gemini via langchain-google-genai
 - 🚀 **FastAPI Backend** - Fast and modern REST API with conversation endpoints
 - 🎨 **Streamlit UI** - Intuitive web interface with interview mode
 - 💾 **Auto-save** - Results saved to .txt files
 - 📝 **Session Memory** - Generation history tracking and conversation state management
 - 🎯 **Project Support** - Specify project name (e.g., fintom8)
-- 🔗 **Gemini Enterprise Integration** - Ready for integration with Gemini Enterprise Agents
 
 ---
 
@@ -42,30 +42,27 @@
 │        LangGraph Workflow                   │
 │                                             │
 │  ┌──────────────────────┐                   │
-│  │ Conversation Agent  │  ← збирає вимоги  │
-│  │  (Q&A Dialog)       │                   │
+│  │ Conversation Agent  │  ← Reads questions│
+│  │  (Q&A Dialog)       │    from JSON file  │
+│  │                     │    Collects answers│
 │  └──────────┬───────────┘                   │
-│             │ коли готово                    │
+│             │ when complete                  │
 │             ▼                                │
-│  ┌──────────┐  ┌──────────┐                  │
-│  │ Outline  │→ │  Draft   │→                │
-│  │  Agent   │  │  Agent   │                 │
-│  └──────────┘  └────┬─────┘                  │
-│                     │                        │
-│              ┌──────▼─────┐                 │
-│              │  Refine    │                 │
-│              │   Agent    │                 │
-│              └──────┬─────┘                 │
-│                     │                        │
-│              ┌──────▼─────┐                 │
-│              │  Persist  │                 │
-│              │   Node     │                 │
-│              └────────────┘                 │
+│  ┌──────────────────────┐                   │
+│  │ Documentation Agent  │  ← Generates     │
+│  │  (Gemini 2.5-pro)    │    complete doc   │
+│  └──────────┬───────────┘                   │
+│             │                                │
+│             ▼                                │
+│  ┌──────────────────────┐                   │
+│  │   Save Node          │  ← Saves to       │
+│  │                      │    generated_docs│
+│  └──────────────────────┘                   │
 └─────────────────────────────────────────────┘
        │
        ▼
 ┌─────────────┐
-│   Gemini    │  ← Google AI Model
+│   Gemini    │  ← Google Gemini 2.5-pro
 │     API     │
 └─────────────┘
 ```
@@ -162,24 +159,24 @@ UI will be available at: `http://localhost:8501`
 
 ### Via Streamlit UI 🖥️
 
-#### Режим 1: Прямий режим (Direct Mode)
+#### Mode 1: Direct Mode
 1. ✏️ Enter **project name** (e.g., `fintom8`)
 2. 📝 Describe the system or documentation request
 3. 🚀 Click **"Generate Documentation"**
 4. ⏳ Wait for generation to complete
-5. 📄 Review the structure and final document
+5. 📄 Review the generated document
 
-#### Режим 2: Інтерв'ю (Interview Mode) ⭐ NEW
-1. 🎯 Select **"Інтерв'ю (діалог)"** mode in sidebar
+#### Mode 2: Interview Mode ⭐ Recommended
+1. 🎯 Select **"Interview (dialog)"** mode in sidebar
 2. ✏️ Enter **project name** (optional)
-3. 🚀 Click **"Почати інтерв'ю"**
+3. 🚀 Click **"Start Interview"**
 4. 💬 Answer questions about your system (multi-turn dialog)
-5. ✅ When all requirements collected, click **"Згенерувати документацію"**
+5. ✅ When all requirements collected, click **"Generate Documentation"**
 6. 📄 Review the generated documentation
 
 ### Via API 🔌
 
-#### Direct Generation (без діалогу)
+#### Direct Generation (without dialog)
 
 ```bash
 curl -X POST "http://localhost:8000/generate" \
@@ -191,17 +188,17 @@ curl -X POST "http://localhost:8000/generate" \
   }'
 ```
 
-#### Conversational Mode (з діалогом) ⭐ NEW
+#### Conversational Mode (with dialog) ⭐ Recommended
 
 ```bash
-# 1. Почати діалог
+# 1. Start dialog
 curl -X POST "http://localhost:8000/conversation/start" \
   -H "Content-Type: application/json" \
   -d '{
     "project_name": "fintom8"
   }'
 
-# 2. Продовжити діалог (повторювати для кожного питання)
+# 2. Continue dialog (repeat for each question)
 curl -X POST "http://localhost:8000/conversation/continue" \
   -H "Content-Type: application/json" \
   -d '{
@@ -209,7 +206,7 @@ curl -X POST "http://localhost:8000/conversation/continue" \
     "answer": "Your answer to the question"
   }'
 
-# 3. Згенерувати документацію після завершення діалогу
+# 3. Generate documentation after completing dialog
 curl -X POST "http://localhost:8000/conversation/generate" \
   -H "Content-Type: application/json" \
   -d '{
@@ -229,14 +226,14 @@ langgraph_docbot/
 │   ├── __init__.py
 │   ├── config.py                # Configuration
 │   ├── state.py                 # Application state
-│   ├── agents.py                # Agents (outline, draft, refine)
+│   ├── agents.py                # Documentation generation agent
 │   ├── conversation_agent.py    # ⭐ Conversational requirements agent
+│   ├── dialog_structure.json    # ⭐ Dialog questions configuration
 │   ├── graph.py                 # LangGraph workflow
 │   ├── memory.py                # Memory management
 │   ├── session_store.py         # ⭐ Conversation session management
 │   ├── validators.py            # Input validation
-│   ├── storage.py               # Document storage
-│   └── prompts.py               # AI prompts
+│   └── storage.py               # Document storage
 │
 ├── 📂 api/                      # FastAPI REST API
 │   ├── __init__.py
@@ -258,8 +255,7 @@ langgraph_docbot/
 ├── 📄 .env.example              # Configuration example
 ├── 📄 requirements.txt          # Python dependencies
 ├── 📄 README.md                 # This file
-├── 📄 CONVERSATIONAL_AGENT.md   # ⭐ Conversational agent documentation
-├── 📄 GEMINI_ENTERPRISE_INTEGRATION.md # ⭐ Gemini Enterprise integration guide
+├── 📄 EXAMPLE_FINTOM8.md        # Example usage
 └── 🚀 run_streamlit.sh          # Streamlit launch script
 ```
 
@@ -272,13 +268,15 @@ Detailed example can be found in [`EXAMPLE_FINTOM8.md`](EXAMPLE_FINTOM8.md)
 **Quick Start (Direct Mode):**
 1. 🏷️ Enter project name: `fintom8`
 2. 📝 Describe the system with technical details
-3. 🎉 Get complete technical documentation!
+3. 🚀 Click "Generate Documentation"
+4. 🎉 Get complete technical documentation!
 
 **Quick Start (Interview Mode):**
 1. 🏷️ Enter project name: `fintom8`
 2. 💬 Start interview and answer questions
 3. ✅ Complete the dialog
-4. 🎉 Get complete technical documentation based on collected requirements!
+4. 🚀 Generate documentation
+5. 🎉 Get complete technical documentation based on collected requirements!
 
 ---
 
@@ -289,8 +287,9 @@ Detailed example can be found in [`EXAMPLE_FINTOM8.md`](EXAMPLE_FINTOM8.md)
 - **🎨 Streamlit** - Interactive UI framework
 - **🕸️ LangGraph** - Agent orchestration
 - **🔗 LangChain** - LLM integration
-- **🤖 Google Gemini** - AI model
+- **🤖 Google Gemini 2.5-pro** - AI model for documentation generation
 - **📦 Pydantic** - Data validation
+- **📋 JSON** - Dialog structure configuration
 
 ---
 
@@ -312,43 +311,35 @@ Detailed example can be found in [`EXAMPLE_FINTOM8.md`](EXAMPLE_FINTOM8.md)
 
 ## 💬 Conversational Requirements Agent
 
-DocBot тепер підтримує **Conversational Requirements Agent** - інтерактивний діалог для збору вимог перед генерацією документації.
+DocBot features a **Conversational Requirements Agent** - an interactive dialog for gathering requirements before documentation generation.
 
-### Основні можливості:
+### Key Features:
 
-- 🗣️ **Multi-turn Dialog** - Агент веде структурований діалог з користувачем
-- 🧠 **Adaptive Questions** - Питання адаптуються на основі попередніх відповідей
-- 💾 **Session Management** - Зберігання стану діалогу між запитами
-- 🎯 **Requirements Gathering** - Збір всіх необхідних вимог перед генерацією
-- ✅ **Flexible Completion** - Користувач може завершити діалог в будь-який момент
+- 🗣️ **Multi-turn Dialog** - Agent conducts structured dialog with user
+- 📋 **JSON-based Configuration** - Questions loaded from `dialog_structure.json`
+- 💾 **Session Management** - Dialog state stored between requests
+- 🎯 **Requirements Gathering** - Collects all necessary requirements before generation
+- ✅ **Flexible Completion** - User can complete dialog at any time
+- 🚀 **Direct Generation** - Single prompt to Gemini 2.5-pro for complete documentation
 
-### Питання для збору вимог:
+### How It Works:
 
-1. Опиши основну мету системи
-2. Хто основні користувачі системи?
-3. Які ключові функції повинні бути реалізовані?
-4. Які технології плануються?
-5. Які інтеграції потрібні?
-6. Які вимоги до безпеки?
-7. Опиши архітектуру системи
-8. Які вимоги до розгортання?
+1. **Dialog Structure** - Questions are loaded from `app/dialog_structure.json`
+2. **Question Flow** - Agent asks questions one by one
+3. **Answer Collection** - User answers are stored
+4. **Summary Creation** - All answers are formatted into requirements summary
+5. **Documentation Generation** - Complete documentation generated via Gemini 2.5-pro
+6. **Auto-save** - Result saved to `generated_docs/` folder
 
-Детальна документація: [`CONVERSATIONAL_AGENT.md`](CONVERSATIONAL_AGENT.md)
+### Customizing Questions:
 
----
+Edit `app/dialog_structure.json` to customize:
+- Add/remove questions
+- Change question text
+- Mark questions as required/optional
+- Add completion trigger phrases
 
-## 🔗 Integration with Gemini Enterprise Agents
-
-DocBot готовий до інтеграції з **Gemini Enterprise Agents** для створення повноцінного conversational агента.
-
-### Переваги інтеграції:
-
-- ✅ Використання LangGraph як backend workflow engine
-- ✅ Gemini Enterprise як фронтовий conversational agent
-- ✅ API endpoints для multi-turn діалогу
-- ✅ Session management для збереження стану
-
-Детальна інструкція з налаштування: [`GEMINI_ENTERPRISE_INTEGRATION.md`](GEMINI_ENTERPRISE_INTEGRATION.md)
+No code changes needed!
 
 ---
 

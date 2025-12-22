@@ -1,0 +1,64 @@
+{
+  "dialog_name": "IT System Requirements Gathering",
+  "version": "1.0",
+  "questions": [
+    {
+      "id": 1,
+      "question": "Describe the main purpose of the system. What should it do?",
+      "category": "overview",
+      "required": true
+    },
+    {
+      "id": 2,
+      "question": "Who are the main users of the system? Who is it intended for?",
+      "category": "users",
+      "required": true
+    },
+    {
+      "id": 3,
+      "question": "What key features should be implemented? Describe the main capabilities.",
+      "category": "features",
+      "required": true
+    },
+    {
+      "id": 4,
+      "question": "What technologies are planned? (programming languages, frameworks, databases)",
+      "category": "tech_stack",
+      "required": true
+    },
+    {
+      "id": 5,
+      "question": "What integrations are needed? (external APIs, services, systems)",
+      "category": "integrations",
+      "required": false
+    },
+    {
+      "id": 6,
+      "question": "What are the security requirements? (authentication, authorization, data protection)",
+      "category": "security",
+      "required": false
+    },
+    {
+      "id": 7,
+      "question": "Describe the system architecture. What are the main components?",
+      "category": "architecture",
+      "required": false
+    },
+    {
+      "id": 8,
+      "question": "What are the deployment and infrastructure requirements?",
+      "category": "deployment",
+      "required": false
+    }
+  ],
+  "completion_triggers": [
+    "done",
+    "complete",
+    "finish",
+    "ready",
+    "generate",
+    "create documentation",
+    "all set"
+  ]
+}
+
