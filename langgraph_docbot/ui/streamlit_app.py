@@ -63,7 +63,7 @@ if st.session_state["conversation_mode"]:
                             "project_name": project_name.strip() if project_name else None,
                             "session_id": st.session_state.get("session_id"),
                         }
-                        resp = requests.post(CONV_START_URL, json=payload, timeout=30)
+                        resp = requests.post(CONV_START_URL, json=payload, timeout=120)
                         
                         if resp.status_code != 200:
                             st.error(f"❌ Error: {resp.status_code}")
@@ -76,7 +76,9 @@ if st.session_state["conversation_mode"]:
                             st.session_state["conversation_complete"] = False
                             st.rerun()
                     except requests.exceptions.ConnectionError:
-                        st.error("❌ Failed to connect to API server. Make sure the server is running.")
+                        st.error("❌ Failed to connect to API server. Make sure the server is running on http://localhost:8000")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ Request timeout. The server is taking too long to respond. Please try again or restart the API server.")
                     except Exception as e:
                         st.error(f"❌ Error: {str(e)}")
     
@@ -115,7 +117,7 @@ if st.session_state["conversation_mode"]:
                                 "session_id": st.session_state["session_id"],
                                 "answer": answer.strip()
                             }
-                            resp = requests.post(CONV_CONTINUE_URL, json=payload, timeout=30)
+                            resp = requests.post(CONV_CONTINUE_URL, json=payload, timeout=120)
                             
                             if resp.status_code != 200:
                                 st.error(f"❌ Error: {resp.status_code}")
@@ -140,7 +142,9 @@ if st.session_state["conversation_mode"]:
                                     st.session_state["current_question"] = data.get("question")
                                     st.rerun()
                         except requests.exceptions.ConnectionError:
-                            st.error("❌ Failed to connect to API server.")
+                            st.error("❌ Failed to connect to API server. Make sure the server is running on http://localhost:8000")
+                        except requests.exceptions.Timeout:
+                            st.error("⏱️ Request timeout. The server is taking too long to respond. Please try again or restart the API server.")
                         except Exception as e:
                             st.error(f"❌ Error: {str(e)}")
                 
@@ -152,7 +156,7 @@ if st.session_state["conversation_mode"]:
                                 "session_id": st.session_state["session_id"],
                                 "answer": ""
                             }
-                            resp = requests.post(CONV_CONTINUE_URL, json=payload, timeout=30)
+                            resp = requests.post(CONV_CONTINUE_URL, json=payload, timeout=120)
                             
                             if resp.status_code == 200:
                                 data = resp.json()
@@ -163,6 +167,8 @@ if st.session_state["conversation_mode"]:
                                 else:
                                     st.session_state["current_question"] = data.get("question")
                                     st.rerun()
+                        except requests.exceptions.Timeout:
+                            st.error("⏱️ Request timeout. Please try again.")
                         except Exception as e:
                             st.error(f"❌ Error: {str(e)}")
     
@@ -177,7 +183,7 @@ if st.session_state["conversation_mode"]:
                         "session_id": st.session_state["session_id"],
                         "force": False
                     }
-                    resp = requests.post(CONV_GENERATE_URL, json=payload, timeout=300)
+                    resp = requests.post(CONV_GENERATE_URL, json=payload, timeout=120)
                     
                     if resp.status_code != 200:
                         st.error(f"❌ Error: {resp.status_code}")
@@ -241,7 +247,7 @@ else:
                     "project_name": project_name.strip() if project_name else None,
                     "session_id": st.session_state.get("session_id"),
                 }
-                resp = requests.post(API_URL, json=payload, timeout=300)
+                resp = requests.post(API_URL, json=payload, timeout=120)
                 
                 # Check if response is successful
                 if resp.status_code != 200:

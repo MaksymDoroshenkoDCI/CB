@@ -19,7 +19,9 @@ def get_llm():
 
 DOCUMENTATION_GENERATION_PROMPT = """You are an experienced technical documentation writer for IT systems.
 
-Based on the collected requirements below, create comprehensive technical documentation for the IT system.
+IMPORTANT: The collected requirements below may contain answers in ANY language (English, Ukrainian, Russian, or any other language). 
+You must understand and process all requirements regardless of the language they are written in.
+The final documentation MUST be written in English only.
 
 {project_context}
 
@@ -92,6 +94,9 @@ Create complete technical documentation that includes:
     - Contribution guidelines
 
 Requirements for documentation:
+- IMPORTANT: Write ONLY in English, regardless of the language of the input requirements
+- Understand and interpret requirements in any language (Ukrainian, Russian, English, etc.)
+- Translate and process all information from the collected requirements into English
 - Write in clear, professional English
 - Use proper technical terminology
 - Include code examples where relevant
@@ -100,7 +105,7 @@ Requirements for documentation:
 - Structure with clear headings and sections
 - Use markdown formatting
 
-Generate the complete documentation now:"""
+Generate the complete documentation now in English:"""
 
 
 def documentation_agent(state: Dict[str, Any]) -> Dict[str, Any]:

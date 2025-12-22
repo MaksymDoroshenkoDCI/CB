@@ -158,7 +158,22 @@ def start_conversation(req: ConversationStartRequest):
         }
         
         # Run workflow to get first question
-        result = workflow.invoke(init_state)
+        # For start, we manually set up the first question to avoid recursion
+        from app.conversation_agent import get_questions_from_json
+        questions = get_questions_from_json()
+        if questions:
+            first_question = questions[0].get("question", "Describe the main purpose of the system.")
+            init_state["current_question_text"] = first_question
+            init_state["system_context"] = first_question
+            init_state["current_question"] = 0
+            init_state["current_question_id"] = questions[0].get("id")
+            init_state["current_question_category"] = questions[0].get("category")
+            init_state["questions_data"] = questions
+            result = init_state
+        else:
+            # Fallback: use workflow with very low recursion limit
+            config = {"recursion_limit": 1}
+            result = workflow.invoke(init_state, config=config)
         
         # Save session state
         create_session(session_id, result)
@@ -199,8 +214,9 @@ def continue_conversation(req: ConversationContinueRequest):
         # Update user_input with answer
         session_state["user_input"] = req.answer
         
-        # Continue workflow
-        result = workflow.invoke(session_state)
+        # Continue workflow - should be fast (just updates state, no LLM calls)
+        config = {"recursion_limit": 2}  # Low limit - just need to update state and return
+        result = workflow.invoke(session_state, config=config)
         
         # Save updated state
         save_session(req.session_id, result)
@@ -276,7 +292,8 @@ def generate_from_conversation(req: ConversationGenerateRequest):
         if not session_state.get("collected_requirements"):
             session_state["collected_requirements"] = session_state.get("user_input", "")
         
-        result = workflow.invoke(session_state)
+        config = {"recursion_limit": 10}  # Higher limit for generation
+        result = workflow.invoke(session_state, config=config)
         
         # Delete session after generation (optional)
         # delete_session(req.session_id)

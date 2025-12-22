@@ -171,6 +171,9 @@ UI will be available at: `http://localhost:8501`
 2. ✏️ Enter **project name** (optional)
 3. 🚀 Click **"Start Interview"**
 4. 💬 Answer questions about your system (multi-turn dialog)
+   - 🌍 **You can answer in ANY language** (English, Ukrainian, Russian, etc.)
+   - The system will understand and process your answers regardless of language
+   - Final documentation will be generated in English
 5. ✅ When all requirements collected, click **"Generate Documentation"**
 6. 📄 Review the generated documentation
 
@@ -316,6 +319,8 @@ DocBot features a **Conversational Requirements Agent** - an interactive dialog 
 ### Key Features:
 
 - 🗣️ **Multi-turn Dialog** - Agent conducts structured dialog with user
+- 🌍 **Multi-language Support** - Users can answer questions in ANY language (English, Ukrainian, Russian, etc.)
+- 📝 **English Output** - All documentation is generated in English, regardless of input language
 - 📋 **JSON-based Configuration** - Questions loaded from `dialog_structure.json`
 - 💾 **Session Management** - Dialog state stored between requests
 - 🎯 **Requirements Gathering** - Collects all necessary requirements before generation

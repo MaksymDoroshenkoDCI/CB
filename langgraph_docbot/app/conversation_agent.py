@@ -48,21 +48,26 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     completion_triggers = get_completion_triggers()
     
     # Initialize dialog structure if it doesn't exist
-    if "answers" not in state:
+    is_first_call = "answers" not in state
+    if is_first_call:
         state["answers"] = {}
         state["current_question"] = 0
         state["conversation_complete"] = False
         state["collected_requirements"] = None
         state["questions_data"] = questions  # Store questions data
+        # Clear user_input for first call
+        state["user_input"] = ""
     
     questions_data = state.get("questions_data", questions)
+    current_q_idx = state.get("current_question", 0)
     
-    # If user provided an answer
-    if state.get("user_input") and state.get("user_input").strip():
-        current_q_idx = state.get("current_question", 0)
-        
+    # Get user input
+    user_input = state.get("user_input", "").strip()
+    
+    # If user provided an answer (not empty)
+    if user_input:
         # Check if user wants to complete the dialog
-        user_input_lower = state["user_input"].lower().strip()
+        user_input_lower = user_input.lower()
         
         if any(trigger in user_input_lower for trigger in completion_triggers):
             # User wants to complete the dialog
@@ -71,34 +76,35 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             if state["answers"]:
                 summary = _format_requirements_summary(state["answers"])
                 state["collected_requirements"] = summary
-                state["system_context"] = "ALL_ANSWERS_COLLECTED"
             else:
                 # If no answers, use user_input as single requirement
-                state["collected_requirements"] = state["user_input"]
-                state["system_context"] = "ALL_ANSWERS_COLLECTED"
+                state["collected_requirements"] = user_input
+            state["system_context"] = "ALL_ANSWERS_COLLECTED"
             return state
         
         # Save answer to current question
         if current_q_idx < len(questions_data):
             question_obj = questions_data[current_q_idx]
             question_text = question_obj.get("question", "")
-            state["answers"][question_text] = state["user_input"]
+            state["answers"][question_text] = user_input
         
         # Move to next question
-        state["current_question"] = current_q_idx + 1
+        current_q_idx = current_q_idx + 1
+        state["current_question"] = current_q_idx
     
     # Check if all questions are collected
-    current_q_idx = state.get("current_question", 0)
-    
     if current_q_idx >= len(questions_data):
         # All questions collected
         state["conversation_complete"] = True
-        summary = _format_requirements_summary(state["answers"])
-        state["collected_requirements"] = summary
+        if state["answers"]:
+            summary = _format_requirements_summary(state["answers"])
+            state["collected_requirements"] = summary
+        else:
+            state["collected_requirements"] = user_input if user_input else ""
         state["system_context"] = "ALL_ANSWERS_COLLECTED"
         return state
     
-    # Get next question from JSON
+    # Get next question from JSON (for display)
     next_question_obj = questions_data[current_q_idx]
     next_question = next_question_obj.get("question", "")
     
@@ -106,6 +112,9 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     state["current_question_text"] = next_question
     state["current_question_id"] = next_question_obj.get("id")
     state["current_question_category"] = next_question_obj.get("category")
+    
+    # Important: Mark that we're waiting for user input (not complete yet)
+    state["conversation_complete"] = False
     
     return state
 

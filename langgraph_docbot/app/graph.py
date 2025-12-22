@@ -73,7 +73,7 @@ def build_graph():
         "conversation_agent",
         all_answers_collected,
         {
-            "continue_conversation": "conversation_agent",  # Return to dialog
+            "continue_conversation": END,  # Stop and wait for user input via API
             "generate_docs": "documentation_agent"  # Proceed to documentation generation
         }
     )
