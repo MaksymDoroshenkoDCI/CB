@@ -14,7 +14,7 @@
 - 💬 **Conversational Requirements Agent** - Multi-turn dialog for gathering requirements before documentation generation
 - 📋 **JSON-based Dialog Structure** - Questions loaded from JSON file, easy to customize
 - 🤖 **Simplified Architecture** - LangGraph workflow: Conversation → Documentation → Save
-- 🧠 **Gemini 2.5-pro** - Powered by Google Gemini via langchain-google-genai
+- 🧠 **Gemini 2.5 Flash** - Powered by Google Gemini via langchain-google-genai
 - 🚀 **FastAPI Backend** - Fast and modern REST API with conversation endpoints
 - 🎨 **Streamlit UI** - Intuitive web interface with interview mode
 - 💾 **Auto-save** - Results saved to .txt files
@@ -50,7 +50,7 @@
 │             ▼                                │
 │  ┌──────────────────────┐                   │
 │  │ Documentation Agent  │  ← Generates     │
-│  │  (Gemini 2.5-pro)    │    complete doc   │
+│  │  (Gemini 2.5 Flash)  │    complete doc   │
 │  └──────────┬───────────┘                   │
 │             │                                │
 │             ▼                                │
@@ -62,7 +62,7 @@
        │
        ▼
 ┌─────────────┐
-│   Gemini    │  ← Google Gemini 2.5-pro
+│   Gemini    │  ← Google Gemini 2.5 Flash
 │     API     │
 └─────────────┘
 ```
@@ -290,7 +290,7 @@ Detailed example can be found in [`EXAMPLE_FINTOM8.md`](EXAMPLE_FINTOM8.md)
 - **🎨 Streamlit** - Interactive UI framework
 - **🕸️ LangGraph** - Agent orchestration
 - **🔗 LangChain** - LLM integration
-- **🤖 Google Gemini 2.5-pro** - AI model for documentation generation
+- **🤖 Google Gemini 2.5 Flash** - AI model for documentation generation (faster and more cost-effective)
 - **📦 Pydantic** - Data validation
 - **📋 JSON** - Dialog structure configuration
 
@@ -325,7 +325,7 @@ DocBot features a **Conversational Requirements Agent** - an interactive dialog 
 - 💾 **Session Management** - Dialog state stored between requests
 - 🎯 **Requirements Gathering** - Collects all necessary requirements before generation
 - ✅ **Flexible Completion** - User can complete dialog at any time
-- 🚀 **Direct Generation** - Single prompt to Gemini 2.5-pro for complete documentation
+- 🚀 **Direct Generation** - Single prompt to Gemini 2.5 Flash for complete documentation
 
 ### How It Works:
 
@@ -333,7 +333,7 @@ DocBot features a **Conversational Requirements Agent** - an interactive dialog 
 2. **Question Flow** - Agent asks questions one by one
 3. **Answer Collection** - User answers are stored
 4. **Summary Creation** - All answers are formatted into requirements summary
-5. **Documentation Generation** - Complete documentation generated via Gemini 2.5-pro
+5. **Documentation Generation** - Complete documentation generated via Gemini 2.5 Flash
 6. **Auto-save** - Result saved to `generated_docs/` folder
 
 ### Customizing Questions:

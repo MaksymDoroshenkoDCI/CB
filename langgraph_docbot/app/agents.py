@@ -11,7 +11,7 @@ from .storage import save_doc_txt
 def get_llm():
     """Returns configured LLM for documentation generation."""
     return ChatGoogleGenerativeAI(
-        model=settings.MODEL_NAME,  # Default: gemini-2.5-pro
+        model=settings.MODEL_NAME,  # Default: gemini-2.5-flash
         temperature=0.3,
         google_api_key=settings.GOOGLE_API_KEY,
     )
@@ -111,7 +111,7 @@ Generate the complete documentation now in English:"""
 def documentation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generates complete technical documentation from collected requirements.
-    Sends prompt directly to Gemini 2.5-pro and saves the result.
+    Sends prompt directly to Gemini 2.5 Flash and saves the result.
     """
     llm = get_llm()
     
