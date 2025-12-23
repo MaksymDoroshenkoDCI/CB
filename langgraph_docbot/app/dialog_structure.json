@@ -1,30 +1,55 @@
 {
   "dialog_name": "IT System Requirements Gathering",
-  "version": "1.0",
+  "version": "2.0",
+  "opening_message": "Hello! I'll help you create comprehensive technical documentation for your IT system. I'll ask you a series of questions about its purpose, features, technical details, and more. This usually takes 5-10 minutes. Let's start!",
+  "acknowledgments": [
+    "Great! That's very helpful.",
+    "Excellent! Thank you for that detail.",
+    "Perfect! That gives me a clear picture.",
+    "Wonderful! I appreciate the specifics.",
+    "Good! That's exactly what I needed."
+  ],
+  "progress_updates": [
+    {
+      "after_question": 2,
+      "message": "We're making good progress! So far, we've covered the system overview. Next, let's discuss the technical details..."
+    }
+  ],
+  "section_transitions": {
+    "overview": "Perfect! I have everything I need about the system overview. Now let's move on to the technical specifications...",
+    "users": "Excellent! Now let's talk about the technical requirements...",
+    "features": "Great! Now let's discuss the technology stack...",
+    "tech_stack": "Perfect! I have all the technical details I need."
+  },
+  "closing_message": "Excellent! I've gathered all the information I need:\n✅ System overview and purpose\n✅ Target users\n✅ Key features and capabilities\n✅ Technology stack\n\nIs there anything else you'd like to add before I create your full technical documentation?",
   "questions": [
     {
       "id": 1,
-      "question": "Describe the main purpose of the system. What should it do?",
+      "question": "What's the name of your system or project, and what is its main purpose? What specific problem should it solve?",
       "category": "overview",
-      "required": true
+      "required": true,
+      "follow_up": "Could you be more specific about the problem it solves? For example, is it automating a manual process, improving user experience, or integrating with existing systems?"
     },
     {
       "id": 2,
-      "question": "Who are the main users of the system? Who is it intended for?",
+      "question": "Who are the main users of the system? Who is it intended for? (e.g., internal employees, customers, administrators)",
       "category": "users",
-      "required": true
+      "required": true,
+      "follow_up": "Could you tell me more about these users? For example, their technical level, how many users you expect, and their main characteristics?"
     },
     {
       "id": 3,
-      "question": "What key features should be implemented? Describe the main capabilities.",
+      "question": "What are the must-have features? Describe the 5-10 core functions that the system must be able to perform.",
       "category": "features",
-      "required": true
+      "required": true,
+      "follow_up": "Could you be more specific about these features? For example, what should users be able to do with each feature?"
     },
     {
       "id": 4,
-      "question": "What technologies are planned? (programming languages, frameworks, databases)",
+      "question": "What technologies are planned? (programming languages, frameworks, databases, platforms - Web/Mobile/Desktop/Hybrid)",
       "category": "tech_stack",
-      "required": true
+      "required": true,
+      "follow_up": "Are there any specific integration needs with other systems, or data requirements you'd like to mention?"
     }
   ],
   "completion_triggers": [
@@ -34,7 +59,10 @@
     "ready",
     "generate",
     "create documentation",
-    "all set"
+    "all set",
+    "yes",
+    "no",
+    "nothing else"
   ]
 }
 

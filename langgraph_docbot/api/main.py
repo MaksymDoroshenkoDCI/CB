@@ -157,18 +157,22 @@ def start_conversation(req: ConversationStartRequest):
             "collected_requirements": None,
         }
         
-        # Run workflow to get first question
+        # Run workflow to get first question with opening message
         # For start, we manually set up the first question to avoid recursion
-        from app.conversation_agent import get_questions_from_json
+        from app.conversation_agent import get_questions_from_json, get_opening_message
         questions = get_questions_from_json()
         if questions:
+            opening = get_opening_message()
             first_question = questions[0].get("question", "Describe the main purpose of the system.")
-            init_state["current_question_text"] = first_question
-            init_state["system_context"] = first_question
+            # Combine opening message with first question
+            full_first_question = f"{opening}\n\n{first_question}"
+            init_state["current_question_text"] = full_first_question
+            init_state["system_context"] = full_first_question
             init_state["current_question"] = 0
             init_state["current_question_id"] = questions[0].get("id")
             init_state["current_question_category"] = questions[0].get("category")
             init_state["questions_data"] = questions
+            init_state["show_opening"] = False  # Already shown
             result = init_state
         else:
             # Fallback: use workflow with very low recursion limit
@@ -215,7 +219,8 @@ def continue_conversation(req: ConversationContinueRequest):
         session_state["user_input"] = req.answer
         
         # Continue workflow - should be fast (just updates state, no LLM calls)
-        config = {"recursion_limit": 2}  # Low limit - just need to update state and return
+        # Increased limit to handle closing message confirmation flow
+        config = {"recursion_limit": 5}  # Need more steps for closing message + confirmation
         result = workflow.invoke(session_state, config=config)
         
         # Save updated state
@@ -224,6 +229,7 @@ def continue_conversation(req: ConversationContinueRequest):
         # Check if dialog is complete
         conversation_complete = result.get("conversation_complete", False)
         collected_requirements = result.get("collected_requirements")
+        waiting_for_confirmation = result.get("waiting_for_confirmation", False)
         
         if conversation_complete:
             return ConversationContinueResponse(
@@ -232,6 +238,16 @@ def continue_conversation(req: ConversationContinueRequest):
                 message="All requirements collected! You can now generate documentation via /conversation/generate",
                 conversation_complete=True,
                 collected_requirements=collected_requirements
+            )
+        elif waiting_for_confirmation:
+            # Show closing message and wait for user confirmation
+            closing_question = result.get("current_question_text") or result.get("system_context")
+            return ConversationContinueResponse(
+                session_id=req.session_id,
+                question=closing_question,
+                message="Please confirm if you're ready to generate documentation, or add any additional information.",
+                conversation_complete=False,
+                collected_requirements=None
             )
         else:
             next_question = result.get("current_question_text") or result.get("system_context")

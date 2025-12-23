@@ -17,7 +17,8 @@ def get_llm():
     )
 
 
-DOCUMENTATION_GENERATION_PROMPT = """You are an experienced technical documentation writer for IT systems.
+DOCUMENTATION_GENERATION_PROMPT = """You are an experienced technical documentation writer for IT systems. 
+You are creating comprehensive technical documentation based on requirements gathered through a structured Business Analyst interview.
 
 IMPORTANT: The collected requirements below may contain answers in ANY language (English, Ukrainian, Russian, or any other language). 
 You must understand and process all requirements regardless of the language they are written in.
@@ -25,7 +26,7 @@ The final documentation MUST be written in English only.
 
 {project_context}
 
-COLLECTED REQUIREMENTS:
+COLLECTED REQUIREMENTS (from Business Analyst interview):
 {collected_requirements}
 
 Create complete technical documentation that includes:

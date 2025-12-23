@@ -1,10 +1,12 @@
 """
 Conversational Requirements Agent
 Gathers requirements through dialog with the user, reading questions from JSON file.
+Implements Business Analyst interview style with acknowledgments, transitions, and progress updates.
 """
 import json
 import os
-from typing import Dict, Any, List
+import random
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 
@@ -32,16 +34,51 @@ def get_completion_triggers() -> List[str]:
     return structure.get("completion_triggers", ["done", "complete", "finish"])
 
 
+def get_opening_message() -> str:
+    """Gets opening message from dialog structure."""
+    structure = load_dialog_structure()
+    return structure.get("opening_message", "Hello! I'll help you create comprehensive technical documentation for your IT system. Let's start!")
+
+
+def get_acknowledgment() -> str:
+    """Gets a random acknowledgment message."""
+    structure = load_dialog_structure()
+    acknowledgments = structure.get("acknowledgments", ["Great! That's very helpful.", "Excellent! Thank you."])
+    return random.choice(acknowledgments)
+
+
+def get_section_transition(category: str) -> Optional[str]:
+    """Gets section transition message for a category."""
+    structure = load_dialog_structure()
+    transitions = structure.get("section_transitions", {})
+    return transitions.get(category)
+
+
+def get_progress_update(after_question: int) -> Optional[str]:
+    """Gets progress update message if available."""
+    structure = load_dialog_structure()
+    progress_updates = structure.get("progress_updates", [])
+    for update in progress_updates:
+        if update.get("after_question") == after_question:
+            return update.get("message")
+    return None
+
+
+def get_closing_message() -> str:
+    """Gets closing message before document generation."""
+    structure = load_dialog_structure()
+    return structure.get("closing_message", "Excellent! I've gathered all the information I need. Is there anything else you'd like to add?")
+
+
 def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Conversational Agent - gathers requirements through dialog.
-    Reads questions from dialog_structure.json file.
-    
-    Logic:
-    1. If this is the first step - initializes dialog structure from JSON
-    2. If user answered - saves the answer
-    3. If there are more questions - shows next question
-    4. If all questions collected - forms summary and proceeds to generation
+    Implements Business Analyst interview style with:
+    - Opening message
+    - Acknowledgments after answers
+    - Section transitions
+    - Progress updates
+    - Closing message before generation
     """
     # Load questions from JSON
     questions = get_questions_from_json()
@@ -54,15 +91,37 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         state["current_question"] = 0
         state["conversation_complete"] = False
         state["collected_requirements"] = None
-        state["questions_data"] = questions  # Store questions data
-        # Clear user_input for first call
+        state["questions_data"] = questions
         state["user_input"] = ""
+        state["show_opening"] = True  # Flag to show opening message
     
     questions_data = state.get("questions_data", questions)
     current_q_idx = state.get("current_question", 0)
+    show_opening = state.get("show_opening", False)
     
     # Get user input
     user_input = state.get("user_input", "").strip()
+    
+    # Check if waiting for confirmation after closing message (MUST be first, before processing user_input)
+    if state.get("waiting_for_confirmation", False):
+        if user_input:
+            # User confirmed (or said no), proceed to generation
+            state["conversation_complete"] = True
+            if state["answers"]:
+                summary = _format_requirements_summary(state["answers"])
+                state["collected_requirements"] = summary
+            else:
+                state["collected_requirements"] = user_input if user_input else ""
+            state["system_context"] = "ALL_ANSWERS_COLLECTED"
+            state["waiting_for_confirmation"] = False  # Clear flag
+            return state
+        else:
+            # Still waiting for confirmation, show closing message again
+            closing_msg = get_closing_message()
+            state["current_question_text"] = closing_msg
+            state["system_context"] = closing_msg
+            state["conversation_complete"] = False
+            return state
     
     # If user provided an answer (not empty)
     if user_input:
@@ -72,49 +131,85 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         if any(trigger in user_input_lower for trigger in completion_triggers):
             # User wants to complete the dialog
             state["conversation_complete"] = True
-            # Form summary from collected answers
             if state["answers"]:
                 summary = _format_requirements_summary(state["answers"])
                 state["collected_requirements"] = summary
             else:
-                # If no answers, use user_input as single requirement
                 state["collected_requirements"] = user_input
             state["system_context"] = "ALL_ANSWERS_COLLECTED"
             return state
         
-        # Save answer to current question
+        # Save answer to current question with acknowledgment
         if current_q_idx < len(questions_data):
             question_obj = questions_data[current_q_idx]
             question_text = question_obj.get("question", "")
             state["answers"][question_text] = user_input
+            
+            # Store acknowledgment for this answer
+            acknowledgment = get_acknowledgment()
+            state["last_acknowledgment"] = acknowledgment
         
         # Move to next question
         current_q_idx = current_q_idx + 1
         state["current_question"] = current_q_idx
+        state["show_opening"] = False
     
     # Check if all questions are collected
     if current_q_idx >= len(questions_data):
-        # All questions collected
-        state["conversation_complete"] = True
-        if state["answers"]:
-            summary = _format_requirements_summary(state["answers"])
-            state["collected_requirements"] = summary
-        else:
-            state["collected_requirements"] = user_input if user_input else ""
-        state["system_context"] = "ALL_ANSWERS_COLLECTED"
+        # Show closing message before completing
+        closing_msg = get_closing_message()
+        state["conversation_complete"] = False  # Wait for user confirmation
+        state["current_question_text"] = closing_msg
+        state["system_context"] = closing_msg
+        state["waiting_for_confirmation"] = True
         return state
     
-    # Get next question from JSON (for display)
+    # Get next question from JSON
     next_question_obj = questions_data[current_q_idx]
     next_question = next_question_obj.get("question", "")
+    category = next_question_obj.get("category", "")
     
-    state["system_context"] = next_question
-    state["current_question_text"] = next_question
+    # Build question message with opening, transition, or progress update
+    question_message_parts = []
+    
+    # Add opening message for first question
+    if show_opening:
+        opening = get_opening_message()
+        question_message_parts.append(opening)
+        question_message_parts.append("")  # Empty line
+        state["show_opening"] = False
+    
+    # Add acknowledgment from previous answer
+    if user_input and current_q_idx > 0 and not state.get("waiting_for_confirmation", False):
+        acknowledgment = state.get("last_acknowledgment", get_acknowledgment())
+        question_message_parts.append(acknowledgment)
+        question_message_parts.append("")  # Empty line
+        
+        # Add section transition if available
+        prev_category = questions_data[current_q_idx - 1].get("category", "") if current_q_idx > 0 else ""
+        transition = get_section_transition(prev_category)
+        if transition:
+            question_message_parts.append(transition)
+            question_message_parts.append("")  # Empty line
+    
+    # Add progress update if available
+    progress_update = get_progress_update(current_q_idx)
+    if progress_update:
+        question_message_parts.append(progress_update)
+        question_message_parts.append("")  # Empty line
+    
+    # Add the actual question
+    question_message_parts.append(next_question)
+    
+    # Combine all parts
+    full_question = "\n".join(question_message_parts)
+    
+    state["system_context"] = full_question
+    state["current_question_text"] = full_question
     state["current_question_id"] = next_question_obj.get("id")
-    state["current_question_category"] = next_question_obj.get("category")
-    
-    # Important: Mark that we're waiting for user input (not complete yet)
+    state["current_question_category"] = category
     state["conversation_complete"] = False
+    state["waiting_for_confirmation"] = False
     
     return state
 
