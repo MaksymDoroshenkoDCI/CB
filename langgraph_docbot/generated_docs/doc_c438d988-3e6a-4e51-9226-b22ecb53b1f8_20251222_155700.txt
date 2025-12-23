@@ -1,0 +1,466 @@
+Of course. As an experienced technical documentation writer, I will create comprehensive documentation for the "fintom8" system based on the provided requirements. The documentation will be structured, detailed, and written in professional English, adhering to all specified guidelines.
+
+***
+
+# Technical Documentation: fintom8
+
+**Version:** 1.0  
+**Date:** 2023-10-27  
+**Status:** DRAFT
+
+---
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the **fintom8** system. It is intended for developers, system administrators, and other technical stakeholders involved in the development, deployment, and maintenance of the system.
+
+### 1.1. System Purpose and Main Goals
+
+The primary purpose of the **fintom8** system is to provide an interactive and engaging way for users to generate AI-powered images. The system operates as a Telegram chatbot that guides the user through a series of questions. The collected answers are then aggregated to form a descriptive prompt, which is sent to the Google Gemini AI model to generate a unique image. The final image is then presented back to the user, and the results are stored for future reference.
+
+The main goals are:
+- To provide a simple, conversational user interface via Telegram.
+- To dynamically construct creative prompts based on user input.
+- To leverage a powerful generative AI model (Google Gemini) for high-quality image creation.
+- To create a stateless, scalable, and easy-to-maintain system using a low-code automation platform (n8n).
+
+### 1.2. Target Audience
+
+The system is designed for a general audience, specifically targeting teenagers and adults from the age of 14 and above. The user interface is intended to be intuitive and requires no technical expertise.
+
+### 1.3. Key Features Summary
+
+- **Conversational Q&A Interface:** A Telegram bot that interacts with users by asking a predefined sequence of questions.
+- **Dynamic Prompt Generation:** The system collects user answers and intelligently combines them into a detailed text prompt for the AI.
+- **AI Image Generation:** Utilizes the Google Gemini API to generate images from the text prompts.
+- **Result Persistence:** Stores the generated image URL, the user's Telegram ID, and the final prompt in a Supabase database.
+- **Telegram-based Authentication:** Users are uniquely identified by their Telegram account, requiring no separate registration or login.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+The **fintom8** system is built on a serverless, event-driven architecture orchestrated by **n8n**. This design decouples the user interface from the core logic and external services, promoting scalability and maintainability. The system is composed of four primary, interconnected components that communicate via APIs.
+
+- **User Interface (Client):** Telegram Messenger
+- **Orchestration & Business Logic (Backend):** n8n Workflow
+- **AI Service (Processing):** Google Gemini API
+- **Data Storage (Database):** Supabase
+
+The architecture is stateless from the perspective of the n8n workflow. Each user interaction triggers a new workflow execution. User session state (i.e., the sequence of questions and answers) is managed within a single, long-running n8n workflow execution or by passing data between workflow steps.
+
+### 2.2. Main Components and Modules
+
+- **Telegram Bot:** The entry point for all user interactions. It is responsible for sending messages (questions) to the user and receiving their text responses. It communicates with the n8n backend via a webhook.
+- **n8n Workflow:** The core of the system. This visual workflow defines the entire business logic:
+    - **Webhook Listener:** Receives incoming messages from the Telegram API.
+    - **Logic Nodes:** Processes user input, manages the conversation flow (i.e., which question to ask next), and stores answers.
+    - **Prompt Constructor:** A dedicated step (e.g., a "Code" node) that assembles the final prompt from the collected answers.
+    - **API Call Nodes:** Makes HTTP requests to the Google Gemini API (for image generation) and the Supabase API (for data storage).
+- **Google Gemini API:** An external service that accepts a text prompt and returns a URL to a generated image.
+- **Supabase Database:** A PostgreSQL database with a RESTful API (provided by Supabase) used to persist generation records.
+
+### 2.3. System Diagrams (Text Format)
+
+#### Component Interaction Diagram
+
+```
+[User] <--> [Telegram App] <--> [Telegram API]
+                                     ^
+                                     | (Webhook)
+                                     v
++-----------------------------------------------------------------+
+| n8n Workflow Engine                                             |
+|                                                                 |
+|  [Webhook Trigger] -> [Q&A Logic] -> [Prompt Builder] -> [API Calls] |
+|        ^                                 |                  |    |
+|        | (User Answers)                  |                  |    |
+|        +---------------------------------+                  |    |
+|                                                             |    |
++-------------------------------------------------------------|----+
+                                                              |
+          +---------------------------------------------------+
+          |
+          v (API Request: Generate Image)
+    [Google Gemini API]
+          |
+          v (API Response: Image URL)
+    [n8n Workflow]
+          |
+          v (API Request: Save Record)
+    [Supabase API]
+          |
+          v (API Response: Success/Fail)
+    [n8n Workflow]
+          |
+          v (Send Message with Image)
+    [Telegram API] -> [Telegram App] -> [User]
+
+```
+
+### 2.4. Data Flow
+
+1.  **Initiation:** A user starts a conversation with the fintom8 Telegram bot.
+2.  **Webhook Trigger:** Telegram sends a JSON payload (containing the user's message and ID) to a pre-configured n8n webhook URL.
+3.  **Q&A Session:**
+    - The n8n workflow receives the data.
+    - It checks the user's current state (e.g., which question was last asked).
+    - It sends the next question back to the user via the Telegram Bot API.
+    - The user's answer is received by the same n8n webhook, and the process repeats until all questions are answered.
+4.  **Prompt Construction:** Once all answers are collected, an n8n node concatenates them into a single, well-structured text prompt (e.g., "A digital art of a cyberpunk cat, with a neon color palette, in a rainy city").
+5.  **Image Generation:** n8n makes a POST request to the Google Gemini API, including the generated prompt and the API key.
+6.  **Response Handling:** Gemini processes the request and returns a JSON response containing a URL to the generated image.
+7.  **Data Persistence:** n8n makes a POST request to the Supabase API to insert a new record into the `generations` table. The payload includes the Telegram User ID, the final prompt, and the image URL received from Gemini.
+8.  **Final Output:** n8n sends a final message to the user via the Telegram Bot API, containing the generated image.
+
+---
+
+## 3. Technology Stack
+
+| Category                  | Technology / Service      | Description                                                                 |
+| ------------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| **Orchestration**         | **n8n**                   | A low-code workflow automation tool used to host and execute the business logic. |
+| **User Interface**        | **Telegram Bot API**      | The API for interacting with users within the Telegram messaging platform.  |
+| **AI Image Generation**   | **Google Gemini API**     | The external service used for generating images from text prompts.         |
+| **Database**              | **Supabase (PostgreSQL)** | A managed backend-as-a-service platform providing a PostgreSQL database and a RESTful API. |
+| **Programming Language**  | **JavaScript/TypeScript** | Used within n8n "Code" nodes for custom logic, such as prompt construction. |
+| **Deployment (Suggested)**| **Docker**                | For self-hosting the n8n instance in a containerized environment.           |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### Feature: Conversational Image Generation
+
+This is the core feature of the system. The bot engages the user in a turn-by-turn conversation.
+
+- **Question Sequence:** The bot follows a predefined script of questions. For example:
+    1.  "Hello! Let's create an image. What is the main subject? (e.g., a dragon, a futuristic car)"
+    2.  "Great! What style should it be? (e.g., photorealistic, cartoon, watercolor, cyberpunk)"
+    3.  "What is the primary mood or color palette? (e.g., dark and moody, vibrant neon, pastel colors)"
+    4.  "Any other details to add? (e.g., 'in a dense forest', 'on a distant planet')"
+- **State Management:** The n8n workflow maintains the context of the conversation for each user, ensuring the correct question is asked next. This can be achieved by storing the current question number along with the user ID in a temporary data store or passing state between workflow executions.
+- **Image Delivery:** Upon successful generation, the image is sent directly into the Telegram chat.
+
+### 4.2. Use Cases
+
+**Use Case 1: Successful Image Generation**
+
+- **Actor:** End User
+- **Preconditions:** User has a Telegram account.
+- **Workflow:**
+    1. User finds and starts the fintom8 bot on Telegram.
+    2. Bot replies with a welcome message and the first question.
+    3. User answers Question 1.
+    4. Bot asks Question 2.
+    5. User answers Question 2.
+    6. ... (This continues for all questions) ...
+    7. After the final answer, the bot sends a "Generating your image..." message.
+    8. The system constructs a prompt, calls the Gemini API, and saves the result to Supabase.
+    9. The bot sends the generated image to the user.
+- **Postconditions:** An image is created and delivered to the user. A record of the generation is saved in the database.
+
+### 4.3. User Workflows
+
+```
+(Start) --> [User starts bot] --> [Bot sends Welcome + Q1]
+             ^                                      |
+             |                                      v
+             +------- [User answers Q(n)] <-- [Bot sends Q(n+1)]
+                                                  |
+                                                  v
+                              [All questions answered]
+                                                  |
+                                                  v
+                      [System generates prompt & calls Gemini]
+                                                  |
+                                                  v
+                               [System saves result to Supabase]
+                                                  |
+                                                  v
+                               [Bot sends image to user] --> (End)
+```
+
+### 4.4. Business Logic
+
+- The core logic resides in the n8n workflow.
+- **Input Validation:** Basic validation can be implemented to check if a user's response is empty. More complex validation is out of scope for v1.0.
+- **Prompt Engineering:** The "Prompt Constructor" node is critical. It must format the collected answers into a coherent sentence that the Gemini model can understand effectively.
+- **Example Prompt Construction (JavaScript in n8n Code Node):**
+  ```javascript
+  // Assume 'items' is the n8n input array with collected data
+  const answers = items[0].json.answers; // e.g., {q1: "a majestic lion", q2: "digital art", q3: "golden hour lighting"}
+
+  const subject = answers.q1;
+  const style = answers.q2;
+  const details = answers.q3;
+
+  // Construct the final prompt
+  const finalPrompt = `${style} of ${subject}, ${details}, highly detailed, cinematic.`;
+
+  // Return the prompt for the next n8n node
+  return [{ json: { prompt: finalPrompt } }];
+  ```
+
+---
+
+## 5. API and Integrations
+
+### 5.1. Telegram Bot API
+
+- **Integration Point:** n8n Workflow (Telegram Trigger Node and Telegram Sender Node).
+- **Authentication:** A secret Bot Token obtained from Telegram's BotFather.
+- **Data Exchange:**
+    - **Inbound (Webhook):** Telegram sends a JSON object to n8n on every new message. Key fields used are `message.chat.id` (to know who to reply to) and `message.text` (the user's answer).
+    - **Outbound (API Call):** n8n calls the `sendMessage` and `sendPhoto` endpoints of the Telegram API to communicate with the user.
+
+### 5.2. Google Gemini API
+
+- **Integration Point:** n8n Workflow (HTTP Request Node).
+- **Authentication:** An API Key obtained from Google AI Studio / Google Cloud. The key is sent in the request headers.
+- **Endpoint:** The specific image generation endpoint provided by the Gemini API documentation.
+- **Data Exchange:**
+    - **Request (POST):** n8n sends a JSON payload.
+      ```json
+      {
+        "prompt": {
+          "text": "A photorealistic image of a cat wearing a wizard hat."
+        }
+        // ... other parameters like model, quality, etc.
+      }
+      ```
+    - **Response (JSON):** Gemini returns a JSON object containing the status and a URL to the generated image.
+
+### 5.3. Supabase API
+
+- **Integration Point:** n8n Workflow (Supabase Node or HTTP Request Node).
+- **Authentication:** A Supabase Project URL and a `service_role` key (or `anon` key with appropriate Row Level Security policies).
+- **Endpoint:** `https://<project-ref>.supabase.co/rest/v1/generations`
+- **Data Exchange:**
+    - **Request (POST):** n8n sends a JSON payload to insert a new row.
+      ```json
+      {
+        "user_telegram_id": 123456789,
+        "prompt_text": "A photorealistic image of a cat wearing a wizard hat.",
+        "image_url": "https://path.to/generated/image.png"
+      }
+      ```
+    - **Response (JSON):** Supabase returns a status code `201 Created` on success.
+
+---
+
+## 6. Database Design
+
+The database is hosted on Supabase and consists of a single primary table.
+
+### 6.1. Database Schema
+
+- **Database:** PostgreSQL
+- **Schema:** `public`
+
+### 6.2. Data Models
+
+#### Table: `generations`
+This table stores a record of every successfully generated image.
+
+| Column Name        | Data Type          | Constraints              | Description                                      |
+| ------------------ | ------------------ | ------------------------ | ------------------------------------------------ |
+| `id`               | `bigint`           | Primary Key, Generated   | Unique identifier for the generation record.     |
+| `created_at`       | `timestamptz`      | Not Null, Default `now()`| Timestamp of when the record was created.        |
+| `user_telegram_id` | `bigint`           | Not Null                 | The unique numeric ID of the Telegram user.      |
+| `prompt_text`      | `text`             | Not Null                 | The final text prompt sent to the Gemini API.    |
+| `image_url`        | `text`             | Not Null                 | The URL of the generated image.                  |
+| `n8n_execution_id` | `varchar(255)`     | Nullable                 | The ID of the n8n workflow execution, for debugging. |
+
+### 6.3. SQL `CREATE TABLE` Statement
+
+```sql
+CREATE TABLE public.generations (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  user_telegram_id bigint NOT NULL,
+  prompt_text text NOT NULL,
+  image_url text NOT NULL,
+  n8n_execution_id character varying(255) NULL
+);
+
+-- Add a comment for clarity
+COMMENT ON TABLE public.generations IS 'Stores records of each image generation event.';
+```
+
+### 6.4. Indexes and Constraints
+
+- A primary key index is automatically created on the `id` column.
+- It is recommended to add an index on `user_telegram_id` to allow for efficient lookups of a user's past generations.
+  ```sql
+  CREATE INDEX idx_generations_user_telegram_id ON public.generations(user_telegram_id);
+  ```
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+- The system does not have its own user authentication layer.
+- Authentication is handled implicitly by Telegram. Each user is uniquely and securely identified by their `user_telegram_id`, which is provided by the Telegram API. The system trusts that the ID provided by a legitimate Telegram webhook call is authentic.
+
+### 7.2. Authorization Rules
+
+- All authenticated users (i.e., any user interacting with the bot on Telegram) are authorized to use the core functionality of image generation.
+- There are no different permission levels or roles defined for v1.0.
+
+### 7.3. Data Protection
+
+- **Sensitive Data:** The primary sensitive data are the API keys and credentials for Telegram, Gemini, and Supabase. These **MUST NOT** be hardcoded in the n8n workflow. They must be stored as encrypted credentials using n8n's built-in Credentials Manager.
+- **User Data:** The only personally identifiable information (PII) stored is the user's Telegram ID. This is necessary to associate generations with users. No other personal data (like username, real name, etc.) is stored.
+- **Data in Transit:** All communication between n8n and external APIs (Telegram, Gemini, Supabase) must use HTTPS to ensure data is encrypted.
+
+### 7.4. Security Best Practices
+
+- **API Key Management:** Store all API keys, tokens, and database credentials in the n8n Credentials Manager.
+- **Webhook Security:** To prevent unauthorized requests to the n8n webhook, consider implementing a secret token check. Telegram can send a custom header (`X-Telegram-Bot-Api-Secret-Token`) that the n8n workflow should validate before processing the request.
+- **Database Access:** Use Supabase's Row Level Security (RLS) if direct client-side access is ever considered. For this backend-only system, using the `service_role` key is acceptable as long as it is properly secured.
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+The system is composed of cloud services and a self-hosted or cloud-hosted n8n instance.
+
+1.  **Supabase:** Create a new project on [supabase.com](https://supabase.com). Run the SQL script from Section 6.3 to create the `generations` table.
+2.  **Google Gemini:** Obtain an API key from the Google AI platform.
+3.  **Telegram:** Create a new bot using BotFather on Telegram to get a Bot Token.
+4.  **n8n Instance:**
+    - **Option A (Cloud):** Sign up for an account on [n8n.cloud](https://n8n.cloud).
+    - **Option B (Self-Hosted):** Deploy n8n using Docker on a virtual private server (VPS) from a provider like DigitalOcean, AWS, or Google Cloud. A `docker-compose.yml` file is the recommended method.
+5.  **n8n Configuration:**
+    - Create credentials in n8n for Telegram, Gemini (using a generic "Header Auth" credential), and Supabase.
+    - Build or import the n8n workflow.
+    - Set the Telegram Bot webhook to point to the n8n webhook URL using a one-time API call to Telegram.
+    - Activate the workflow.
+
+### 8.2. Infrastructure Requirements
+
+- **n8n Instance:** A server with at least 1 vCPU and 2 GB RAM is recommended to start. The requirements may scale with user traffic.
+- **Supabase:** The free tier is sufficient for initial development and low traffic.
+- **Gemini & Telegram:** These are managed services with their own infrastructure. Usage is subject to their pricing and rate limits.
+
+### 8.3. CI/CD Pipeline
+
+Given the nature of n8n (visual development), a traditional CI/CD pipeline is not standard. However, a "DevOps" process can be established:
+1.  **Development:** Develop and test workflows on a local or staging n8n instance.
+2.  **Versioning:** Export the final workflow as a JSON file and commit it to a Git repository (e.g., GitHub, GitLab). This provides version control.
+3.  **Deployment:** Manually import the JSON file into the production n8n instance and activate it. The n8n-cli can be used to automate this process in more advanced setups.
+
+### 8.4. Environment Configuration
+
+When self-hosting n8n, an environment file (`.env`) should be used to configure the instance.
+
+**Example `.env` for n8n with Docker:**
+```ini
+# Basic n8n settings
+NODE_ENV=production
+N8N_HOST="your-domain.com"
+N8N_PROTOCOL="https"
+WEBHOOK_URL="https://your-domain.com/"
+
+# Database settings (if not using default SQLite)
+# DB_TYPE=postgresdb
+# DB_POSTGRESDB_HOST=...
+
+# Timezone
+GENERIC_TIMEZONE=Europe/Kiev
+```
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+The testing strategy will be primarily manual for the end-to-end user flow, supplemented with component-level testing within n8n.
+
+### 9.2. Test Types
+
+- **Manual End-to-End Testing:**
+    - Testers interact with the Telegram bot from a user's perspective.
+    - Scenarios to test include the "happy path" (successful generation), handling of unexpected user input (e.g., sending a sticker instead of text), and timeouts.
+    - Verify that the image is received and that the corresponding data is correctly saved in the Supabase database.
+- **Workflow Execution Testing:**
+    - Use n8n's "Test Workflow" feature to test individual nodes or the entire workflow with sample data.
+    - This is useful for debugging API calls and data transformations within the "Code" nodes.
+- **Error Handling Testing:**
+    - Manually simulate failures, such as providing an invalid Gemini API key.
+    - Verify that the workflow handles the error gracefully (e.g., by sending an apology message to the user) and that the execution is logged as "Failed".
+
+### 9.3. Testing Tools
+
+- **Telegram Desktop/Mobile App:** For manual E2E testing.
+- **n8n Editor UI:** For workflow execution testing.
+- **Supabase Table Editor:** To verify that data is being written correctly.
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+- **n8n Executions:** The primary monitoring tool is the n8n "Executions" list in the dashboard. This view shows all past workflow runs, their status (Success, Failed), and the data that was processed.
+- **External Service Status:** Monitor the status pages for Supabase and Google Cloud to be aware of any platform-wide outages.
+- **Server Health (Self-hosted):** If self-hosting n8n, monitor the server's CPU, RAM, and disk usage using standard tools like `htop`, `Prometheus/Grafana`, or cloud provider dashboards.
+
+### 10.2. Logging Strategy
+
+- **n8n Logs:** n8n automatically logs all workflow executions. Successful executions log the full data flow, while failed executions log the error message and the point of failure. This is the main source for debugging user-specific issues.
+- **Custom Logging:** For complex logic in "Code" nodes, use `console.log()` to output debug information, which will be visible in the n8n execution log.
+- **Error Workflow:** Configure a global "Error Workflow" in n8n. This special workflow can be triggered whenever any other workflow fails. It can be configured to send a notification (e.g., to a separate Telegram chat or email) to the system administrator with details about the failure.
+
+### 10.3. Error Handling
+
+- **API Call Failures:** Configure the "HTTP Request" and "Supabase" nodes in n8n to "Continue on Fail" and route the logic down an error path. This allows the workflow to catch the error and send a user-friendly message like, "Sorry, I couldn't generate the image right now. Please try again later."
+- **Unexpected Input:** The workflow should have a default path for user input that doesn't match the expected format, guiding the user to provide a valid answer.
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+A new developer needs to set up their local environment to work on the n8n workflow.
+
+### 11.2. Development Setup
+
+1.  **Prerequisites:**
+    - Docker and Docker Compose installed.
+    - Access to the project's secrets: Telegram Bot Token, Gemini API Key, Supabase Project URL and Service Key.
+2.  **Clone the Repository:**
+    - If workflows are stored in Git, clone the repository containing the `workflow.json` file.
+3.  **Launch Local n8n:**
+    - Create a `docker-compose.yml` file for a local n8n instance.
+    - Run `docker-compose up -d`.
+    - Access the local n8n instance at `http://localhost:5678`.
+4.  **Configure Environment:**
+    - Import the `workflow.json` into your local n8n instance.
+    - Go to the "Credentials" section and add new credentials for Telegram, Gemini, and Supabase using the provided secrets.
+    - Link the credentials in the respective workflow nodes.
+5.  **Expose Webhook:**
+    - To receive webhooks from the live Telegram API, you need to expose your local n8n instance to the internet. Use a tool like **ngrok** for this.
+    - Run `ngrok http 5678`.
+    - Update the Telegram bot's webhook URL to the `https://` URL provided by ngrok.
+6.  **Start Testing:**
+    - You can now interact with your bot on Telegram, and the requests will be forwarded to your local n8n instance for development and debugging.
+
+### 11.3. Contribution Guidelines
+
+- Do not commit any secrets or API keys to the Git repository.
+- All new features or bug fixes should be developed on a separate branch.
+- Before committing, export the updated workflow to its `workflow.json` file.
+- Ensure the workflow is well-documented with sticky notes in the n8n canvas explaining complex steps.
+- Test the end-to-end flow manually before submitting a pull request.

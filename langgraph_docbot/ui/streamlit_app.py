@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+import datetime
 
 BASE_API_URL = os.getenv("API_URL", "http://localhost:8000")
 API_URL = f"{BASE_API_URL}/generate"
@@ -74,6 +75,7 @@ if st.session_state["conversation_mode"]:
                             st.session_state["current_question"] = data["question"]
                             st.session_state["conversation_answers"] = []
                             st.session_state["conversation_complete"] = False
+                            st.session_state["project_name"] = project_name.strip() if project_name else "documentation"
                             st.rerun()
                     except requests.exceptions.ConnectionError:
                         st.error("❌ Failed to connect to API server. Make sure the server is running on http://localhost:8000")
@@ -133,9 +135,9 @@ if st.session_state["conversation_mode"]:
                                 if data["conversation_complete"]:
                                     st.session_state["conversation_complete"] = True
                                     st.session_state["current_question"] = None
-                                    st.success("✅ All requirements collected! You can now generate documentation.")
+                                    st.success("✅ All questions answered! Click the button below to generate documentation.")
                                     if data.get("collected_requirements"):
-                                        with st.expander("📋 Collected Requirements"):
+                                        with st.expander("📋 Collected Requirements Summary"):
                                             st.markdown(data["collected_requirements"])
                                     st.rerun()
                                 else:
@@ -174,7 +176,8 @@ if st.session_state["conversation_mode"]:
     
     # Generate documentation after dialog completion
     if st.session_state["conversation_complete"]:
-        st.subheader("🚀 Documentation Generation")
+        st.subheader("🚀 Ready to Generate Documentation")
+        st.info("All questions have been answered. Click the button below to generate your technical documentation.")
         
         if st.button("Generate Documentation", use_container_width=True, type="primary"):
             with st.spinner("Generating structure and documentation..."):
@@ -198,10 +201,34 @@ if st.session_state["conversation_mode"]:
                         if data.get("documentation"):
                             st.subheader("📄 Generated Document")
                             st.markdown(data["documentation"])
+                            
+                            # Store documentation in session state for download
+                            st.session_state["generated_documentation"] = data["documentation"]
+                            st.session_state["project_name_for_download"] = st.session_state.get("project_name", "documentation")
+                            
+                            st.success(data.get("message", "✅ Documentation generated!"))
+                            
+                            # Add download button
+                            st.markdown("---")
+                            st.subheader("💾 Download Documentation")
+                            
+                            # Generate filename with project name and timestamp
+                            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                            project_name = st.session_state.get("project_name", "documentation")
+                            filename = f"{project_name}_documentation_{timestamp}.txt"
+                            
+                            st.download_button(
+                                label="💾 Зберегти Документацію (Save Documentation)",
+                                data=data["documentation"],
+                                file_name=filename,
+                                mime="text/plain",
+                                use_container_width=True,
+                                type="primary"
+                            )
+                        else:
+                            st.warning("⚠️ Documentation was not generated. Please try again.")
                         
-                        st.success(data.get("message", "✅ Documentation generated!"))
-                        
-                        # Clear state for new dialog
+                        # Clear state for new dialog (but keep documentation for download)
                         st.session_state["session_id"] = None
                         st.session_state["current_question"] = None
                         st.session_state["conversation_answers"] = []
@@ -272,8 +299,28 @@ else:
                 if data.get("documentation"):
                     st.subheader("📄 Generated Document")
                     st.markdown(data["documentation"])
-                
-                st.success(data.get("message", "✅ Documentation generated!"))
+                    
+                    st.success(data.get("message", "✅ Documentation generated!"))
+                    
+                    # Add download button
+                    st.markdown("---")
+                    st.subheader("💾 Download Documentation")
+                    
+                    # Generate filename with project name and timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    project_name_for_file = project_name.strip() if project_name else "documentation"
+                    filename = f"{project_name_for_file}_documentation_{timestamp}.txt"
+                    
+                    st.download_button(
+                        label="💾 Зберегти Документацію (Save Documentation)",
+                        data=data["documentation"],
+                        file_name=filename,
+                        mime="text/plain",
+                        use_container_width=True,
+                        type="primary"
+                    )
+                else:
+                    st.warning("⚠️ Documentation was not generated. Please try again.")
                 
             except requests.exceptions.ConnectionError:
                 st.error("❌ Failed to connect to API server. Make sure the server is running on http://localhost:8000")

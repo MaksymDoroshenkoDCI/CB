@@ -1,0 +1,498 @@
+# Technical Documentation: AutoBidder
+
+**Project Codename:** fintom8
+**System Name:** AutoBidder
+**Version:** 1.0
+**Date:** 2023-10-27
+
+---
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the AutoBidder system. It outlines the system architecture, technology stack, features, security mechanisms, and deployment strategies. This documentation is intended for software developers, system administrators, and other technical stakeholders involved in the development, deployment, and maintenance of the platform.
+
+### 1.1. System Purpose and Main Goals
+
+**AutoBidder** is a web-based platform designed to streamline the process of purchasing vehicles from major US auctions, specifically **Copart** and **AIIA**. The system aggregates vehicle listings, provides powerful search and comparison tools, and facilitates the bidding and ordering process.
+
+The primary goal of AutoBidder is to **simplify and democratize access to car auctions**. It aims to solve the complexity and high barrier to entry typically associated with auction purchasing, making it an accessible and transparent process for both experienced dealers and first-time private buyers.
+
+### 1.2. Target Audience
+
+The system is designed for a diverse user base with distinct roles and needs:
+
+*   **Private Buyers:** Individuals looking to purchase a single vehicle for personal use. They require a simple, intuitive interface for searching, bidding, and tracking their purchase.
+*   **Car Dealers & Brokers:** Professionals who purchase vehicles in volume. They require advanced tools for managing multiple bids, tracking a large inventory of potential purchases, and accessing detailed vehicle history and analytics.
+*   **Administrators:** Internal staff responsible for managing the platform. Their functions include overseeing orders, verifying user information, managing integrations with auction houses, and providing customer support through the platform.
+
+### 1.3. Key Features Summary
+
+The core functionality of the AutoBidder platform includes:
+
+*   **User Account Management:** Secure registration, login, and a personal dashboard.
+*   **Aggregated Auction Search:** A unified search interface for vehicles from Copart and AIIA.
+*   **Detailed Vehicle Listings:** Comprehensive information for each vehicle, including photos, specifications, and auction details.
+*   **Favorites/Watchlist:** Ability for users to save and monitor vehicles of interest.
+*   **Order Placement & Management:** A streamlined workflow for placing orders and making bids.
+*   **Real-time Status Tracking:** Users can track the status of their orders from bid to delivery.
+*   **Purchase History:** An archive of all past and current purchases.
+*   **Internal Messaging System:** A built-in chat for users to communicate directly with platform managers.
+*   **Automated Notifications:** Email or in-app notifications for important events, such as bid status changes, order updates, and messages.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+AutoBidder is built on a modern, decoupled architecture. It consists of a Single-Page Application (SPA) frontend that communicates with a backend service via a RESTful API. This approach ensures a clear separation of concerns, allowing for independent development, scaling, and maintenance of the client and server components. The backend is designed to be stateless where possible to facilitate horizontal scaling.
+
+### 2.2. Main Components and Modules
+
+The system is logically divided into the following key modules:
+
+*   **Frontend (Client Application):** A React/Next.js SPA responsible for all user interface rendering and client-side logic.
+*   **Backend API (Server Application):** A Python/FastAPI service that exposes RESTful endpoints. It handles business logic, data processing, and communication with the database and external services.
+*   **Database:** A PostgreSQL relational database that serves as the single source of truth for all application data, including users, vehicles, orders, and bids.
+*   **Authentication Service:** A module within the backend responsible for user authentication and authorization using JSON Web Tokens (JWT).
+*   **Auction Integration Service:** A dedicated module for communicating with the Copart and AIIA APIs. It fetches vehicle data, syncs auction statuses, and submits bids.
+*   **Notification Service:** Manages the sending of automated emails and in-app notifications to users.
+*   **Task Queue (Optional but Recommended):** A system like Celery with Redis/RabbitMQ to handle long-running or asynchronous tasks, such as processing large data imports from auctions or sending bulk notifications.
+
+### 2.3. System Diagrams (Text Format)
+
+#### High-Level Component Diagram
+
+```
++----------------+      +--------------------+      +-----------------------+
+|   User Browser | <--> |  Frontend (React)  | <--> |  Backend API (FastAPI)|
++----------------+      +--------------------+      +-----------+-----------+
+                                                                |
+                                                                |
++---------------------------------------------------------------+----------------------------------------------------------------+
+|                                                                                                                                |
+v                                                                                                                                v
++-----------------------+      +--------------------+      +-------------------------+      +-----------------+      +----------+----------+
+| Authentication Module | <--> | PostgreSQL Database| <--> | Order Management Module | <--> | Task Queue (Celery) | <--> | Notification Service |
++-----------------------+      +--------------------+      +-------------------------+      +-----------------+      +----------+----------+
+                                         ^                            ^
+                                         |                            |
+                                         |                            |
+                                         +----------------------------+
+                                                          |
+                                                          v
+                                        +----------------------------------+
+                                        |  Auction Integration Service     |
+                                        |   (Copart API, AIIA API)         |
+                                        +----------------------------------+
+```
+
+### 2.4. Data Flow
+
+1.  **User Interaction:** A user interacts with the React frontend in their browser.
+2.  **API Request:** The frontend sends an HTTPS request (e.g., login, search for cars) to the FastAPI backend. For protected routes, a JWT is included in the `Authorization` header.
+3.  **Request Processing:** The backend API receives the request. The Authentication module validates the JWT.
+4.  **Business Logic:** The relevant module (e.g., Order Management) processes the request.
+5.  **Database Interaction:** The module reads from or writes to the PostgreSQL database via an ORM like SQLAlchemy.
+6.  **External Integration:** If the request involves auction data (e.g., fetching new listings), the Auction Integration Service makes a call to the appropriate external API (Copart or AIIA).
+7.  **Asynchronous Tasks:** For long-running operations (e.g., generating a report), a task is pushed to the Task Queue. A worker process picks up the task and executes it independently.
+8.  **API Response:** The backend API sends a JSON response back to the frontend.
+9.  **UI Update:** The frontend receives the response and updates the UI accordingly.
+
+---
+
+## 3. Technology Stack
+
+This section details the technologies, frameworks, and tools used to build and run the AutoBidder platform.
+
+| Category                  | Technology / Tool        | Description                                                                 |
+| ------------------------- | ------------------------ | --------------------------------------------------------------------------- |
+| **Programming Languages** | Python 3.10+, JavaScript | Python for the backend, JavaScript (with TypeScript) for the frontend.      |
+| **Backend Framework**     | FastAPI                  | A modern, high-performance web framework for building APIs with Python.     |
+| **Frontend Framework**    | Next.js (or React)       | A popular framework for building fast, server-rendered React applications.  |
+| **Database**              | PostgreSQL 14+           | A powerful, open-source object-relational database system.                  |
+| **Authentication**        | JWT, OAuth 2.0           | JSON Web Tokens for stateless API authentication.                           |
+| **Data Access (ORM)**     | SQLAlchemy               | The Python SQL toolkit and Object Relational Mapper.                        |
+| **Containerization**      | Docker                   | For creating, deploying, and running applications in containers.            |
+| **Orchestration**         | Kubernetes (or Docker Compose) | For automating the deployment, scaling, and management of containers.   |
+| **CI/CD**                 | GitHub Actions / Jenkins | Continuous Integration and Continuous Deployment pipeline automation.       |
+| **Monitoring**            | Prometheus, Grafana      | For collecting metrics and visualizing system performance dashboards.       |
+| **Logging**               | ELK Stack / Loki         | For centralized log aggregation, searching, and analysis.                   |
+| **Web Server / Gateway**  | Uvicorn, Nginx           | Uvicorn as the ASGI server for FastAPI, Nginx as a reverse proxy.           |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. Personal User Account (Dashboard)
+*   **Description:** After registration and login, users access a personal dashboard. This is the central hub for managing their activities.
+*   **Use Cases:**
+    *   A user can view their profile information and edit it.
+    *   A user can see a summary of their active bids, watched vehicles, and recent orders.
+    *   A user can access their purchase history and internal chat messages.
+*   **Business Logic:** The dashboard fetches data from multiple endpoints (`/api/v1/users/me`, `/api/v1/orders/summary`) to populate the widgets. Access is restricted to authenticated users.
+
+#### 4.1.2. Car Search from Copart & AIIA
+*   **Description:** A powerful and intuitive search interface that allows users to find vehicles across both Copart and AIIA auctions simultaneously.
+*   **Use Cases:**
+    *   A user can search by make, model, year, and location.
+    *   A user can filter results by damage type, document type, and auction date.
+    *   A user can sort results by price, auction end time, or mileage.
+*   **Business Logic:** The backend provides a search endpoint (`GET /api/v1/vehicles/search`) that accepts various query parameters. This endpoint queries a local, synced copy of the auction data for performance. A background job periodically syncs data from the Copart and AIIA APIs.
+
+#### 4.1.3. Favorites / Watchlist
+*   **Description:** Users can add vehicles to a personal "Favorites" list to easily monitor them.
+*   **Use Cases:**
+    *   While browsing, a user clicks a "heart" or "star" icon to add a car to their watchlist.
+    *   The user can view their complete watchlist on a dedicated page.
+    *   The user receives notifications when a watched vehicle's auction is about to start.
+*   **Business Logic:** A `favorites` table in the database links `user_id` and `vehicle_id`. The API provides endpoints to add (`POST /api/v1/favorites`), remove (`DELETE /api/v1/favorites/{vehicle_id}`), and list (`GET /api/v1/favorites`) favorited items.
+
+#### 4.1.4. Order Placement and Status Tracking
+*   **Description:** A guided process for placing an order or a bid on a vehicle. Once placed, users can track the order's status in real-time.
+*   **User Workflow:**
+    1.  User selects a vehicle and clicks "Place Bid" or "Buy Now".
+    2.  User enters their maximum bid amount and confirms their details.
+    3.  The system creates an order with a "Pending" status.
+    4.  The backend submits the bid to the corresponding auction house via its API.
+    5.  The order status updates automatically based on feedback from the auction API (e.g., "Outbid", "Won", "Lost").
+    6.  Possible statuses: `Pending`, `Submitted`, `Active`, `Outbid`, `Won`, `Lost`, `Paid`, `Shipped`, `Delivered`.
+*   **Business Logic:** The `orders` table tracks all order details. Status changes are triggered by webhooks from the auction APIs or by periodic polling jobs. Each status change can trigger a notification to the user.
+
+#### 4.1.5. Internal Chat with Manager
+*   **Description:** A real-time chat feature allowing users to communicate directly with an assigned administrator or manager for support.
+*   **Use Cases:**
+    *   A user has a question about a vehicle and initiates a chat.
+    *   An administrator contacts a user to request additional documentation for an order.
+*   **Business Logic:** Implemented using WebSockets for real-time communication. A `messages` table stores chat history, linked to a `chat_session` which is associated with a user and an admin.
+
+---
+
+## 5. API and Integrations
+
+### 5.1. Internal REST API (Examples)
+
+The backend exposes a RESTful API for the frontend. All endpoints are prefixed with `/api/v1`.
+
+| Method | Endpoint                    | Description                                |
+| ------ | --------------------------- | ------------------------------------------ |
+| `POST` | `/auth/token`               | Authenticate user and receive a JWT.       |
+| `POST` | `/users`                    | Register a new user.                       |
+| `GET`  | `/users/me`                 | Get the current authenticated user's profile. |
+| `GET`  | `/vehicles`                 | Get a list of vehicles with filtering/sorting. |
+| `GET`  | `/vehicles/{vehicle_id}`    | Get details for a specific vehicle.        |
+| `GET`  | `/orders`                   | Get the current user's order history.      |
+| `POST` | `/orders`                   | Place a new order/bid on a vehicle.        |
+| `GET`  | `/orders/{order_id}`        | Get the status and details of a specific order.|
+| `POST` | `/favorites`                | Add a vehicle to the user's favorites.     |
+| `GET`  | `/favorites`                | List all vehicles in the user's favorites. |
+
+#### Example Request: Get Vehicles
+
+```bash
+GET /api/v1/vehicles?make=Toyota&model=Camry&year_from=2020
+
+Authorization: Bearer <your_jwt_token>
+```
+
+#### Example Response:
+
+```json
+{
+  "data": [
+    {
+      "id": 12345,
+      "make": "Toyota",
+      "model": "Camry",
+      "year": 2021,
+      "vin": "...",
+      "auction_source": "Copart",
+      "current_bid": 15000,
+      "auction_end_time": "2023-11-10T14:00:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
+### 5.2. External Service Integrations
+
+*   **Copart API:**
+    *   **Purpose:** To fetch vehicle listings, photos, details, and place bids.
+    *   **Type:** REST API.
+    *   **Authentication:** Requires API keys provided by Copart.
+    *   **Data Format:** JSON.
+    *   **Key Operations:** Search for lots, get lot details, place bids.
+
+*   **AIIA (IAAI) API:**
+    *   **Purpose:** Same as Copart API.
+    *   **Type:** REST API.
+    *   **Authentication:** Requires API keys and credentials.
+    *   **Data Format:** JSON.
+    *   **Key Operations:** Search for vehicles, get vehicle details, pre-bid submission.
+
+---
+
+## 6. Database Design
+
+### 6.1. Database Schema
+
+The database uses a relational model in PostgreSQL. Below are the core tables.
+
+**`users`**
+
+| Column          | Type          | Constraints              | Description                              |
+| --------------- | ------------- | ------------------------ | ---------------------------------------- |
+| `id`            | `SERIAL`      | `PRIMARY KEY`            | Unique identifier for the user.          |
+| `email`         | `VARCHAR(255)`| `UNIQUE`, `NOT NULL`     | User's email, used for login.            |
+| `password_hash` | `VARCHAR(255)`| `NOT NULL`               | Hashed password.                         |
+| `full_name`     | `VARCHAR(255)`|                          | User's full name.                        |
+| `role`          | `VARCHAR(50)` | `NOT NULL`, `DEFAULT 'buyer'` | User role (`buyer`, `dealer`, `admin`). |
+| `created_at`    | `TIMESTAMPTZ` | `NOT NULL`               | Timestamp of user creation.              |
+
+**`vehicles`**
+
+| Column            | Type          | Constraints        | Description                                  |
+| ----------------- | ------------- | ------------------ | -------------------------------------------- |
+| `id`              | `SERIAL`      | `PRIMARY KEY`      | Internal unique ID for the vehicle.          |
+| `source`          | `VARCHAR(50)` | `NOT NULL`         | Auction source ('copart', 'aiia').           |
+| `source_id`       | `VARCHAR(100)`| `NOT NULL`         | Vehicle ID from the source auction.          |
+| `make`            | `VARCHAR(100)`|                    | Vehicle make (e.g., Toyota).                 |
+| `model`           | `VARCHAR(100)`|                    | Vehicle model (e.g., Camry).                 |
+| `year`            | `INTEGER`     |                    | Manufacturing year.                          |
+| `vin`             | `VARCHAR(17)` | `UNIQUE`           | Vehicle Identification Number.               |
+| `details`         | `JSONB`       |                    | All other data from the source API (specs, damage, etc.). |
+| `last_synced_at`  | `TIMESTAMPTZ` |                    | Last time the data was synced from the source. |
+
+**`orders`**
+
+| Column        | Type          | Constraints                   | Description                                  |
+| ------------- | ------------- | ----------------------------- | -------------------------------------------- |
+| `id`          | `SERIAL`      | `PRIMARY KEY`                 | Unique ID for the order.                     |
+| `user_id`     | `INTEGER`     | `FK to users.id`              | The user who placed the order.               |
+| `vehicle_id`  | `INTEGER`     | `FK to vehicles.id`           | The vehicle being ordered/bid on.            |
+| `status`      | `VARCHAR(50)` | `NOT NULL`                    | Current status of the order (e.g., `pending`, `won`). |
+| `max_bid`     | `DECIMAL`     | `NOT NULL`                    | User's maximum bid amount.                   |
+| `final_price` | `DECIMAL`     |                               | The final price if the auction is won.       |
+| `created_at`  | `TIMESTAMPTZ` | `NOT NULL`                    | Timestamp of order creation.                 |
+| `updated_at`  | `TIMESTAMPTZ` |                               | Timestamp of last status update.             |
+
+**`favorites`**
+
+| Column       | Type      | Constraints                          | Description                               |
+| ------------ | --------- | ------------------------------------ | ----------------------------------------- |
+| `user_id`    | `INTEGER` | `FK to users.id`, `PRIMARY KEY`      | The user who favorited the item.          |
+| `vehicle_id` | `INTEGER` | `FK to vehicles.id`, `PRIMARY KEY`   | The vehicle that was favorited.           |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`                       | Timestamp when the vehicle was favorited. |
+
+### 6.2. Relationships
+
+*   A `user` can have many `orders`. (One-to-Many)
+*   A `vehicle` can be in many `orders`. (One-to-Many)
+*   A `user` can have many `favorites`. A `vehicle` can be in many `favorites`. (Many-to-Many, implemented via the `favorites` junction table).
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+*   **JWT (JSON Web Tokens):** The system uses stateless authentication via JWT.
+    1.  A user submits their email and password to the `/auth/token` endpoint.
+    2.  The server validates the credentials.
+    3.  If valid, the server generates a signed JWT containing the `user_id`, `role`, and an expiration timestamp (`exp`).
+    4.  The token is sent back to the client.
+    5.  The client stores the token (e.g., in `localStorage` or an HttpOnly cookie) and sends it in the `Authorization: Bearer <token>` header with every subsequent request to protected endpoints.
+    6.  The server middleware validates the token's signature and expiration on each request.
+
+### 7.2. Authorization Rules
+
+Authorization is role-based to control access to different parts of the system.
+
+*   **`buyer` / `dealer`:** Can access their own profile, orders, and favorites. Dealers may have access to additional features (e.g., bulk bidding tools) not available to regular buyers.
+*   **`admin`:** Can access all user data, manage orders, and view system-level dashboards. They have read/write access to most resources.
+
+This will be implemented in the FastAPI backend using dependencies that check the `role` claim within the validated JWT.
+
+### 7.3. Data Protection
+
+*   **Password Hashing:** User passwords are never stored in plaintext. They are hashed using a strong, salted algorithm like **bcrypt** or **Argon2**.
+*   **HTTPS/TLS:** All communication between the client and server must be encrypted using HTTPS to prevent man-in-the-middle attacks.
+*   **API Keys:** All external API keys and other secrets (database passwords, JWT secret key) must be stored securely using environment variables or a secret management tool (e.g., HashiCorp Vault), not hardcoded in the source code.
+*   **Input Validation:** All incoming data from users and external APIs is validated (using Pydantic in FastAPI) to prevent injection attacks (SQLi, XSS).
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+The application is containerized using Docker and deployed using Docker Compose for simplicity (on a single VPS) or Kubernetes for scalability and resilience.
+
+**`docker-compose.yml` Example:**
+
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: autobidder_backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+  
+  frontend:
+    build: ./frontend
+    container_name: autobidder_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:14-alpine
+    container_name: autobidder_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+
+volumes:
+  postgres_data:
+```
+
+### 8.2. Infrastructure Requirements
+
+*   **VPS:** A virtual private server (e.g., on DigitalOcean, AWS EC2) with at least 2 vCPUs, 4 GB RAM, and 50 GB SSD storage to start.
+*   **Kubernetes Cluster:** For a high-availability setup, a managed Kubernetes service (EKS, GKE, DOKS) is recommended.
+*   **Database:** A managed PostgreSQL service (e.g., AWS RDS, DigitalOcean Managed Databases) is recommended for production to handle backups, scaling, and failover.
+*   **Networking:** A reverse proxy like Nginx or Traefik to handle incoming traffic, SSL termination, and routing to the appropriate services.
+
+### 8.3. CI/CD Pipeline
+
+A CI/CD pipeline will be set up using GitHub Actions.
+
+1.  **On Push to `main` branch:**
+    *   Run linters and static analysis.
+    *   Run unit and integration tests.
+    *   Build Docker images for frontend and backend.
+    *   Push images to a container registry (e.g., Docker Hub, AWS ECR).
+2.  **On Merge/Tag:**
+    *   Trigger deployment script.
+    *   The script connects to the production server/cluster via SSH.
+    *   It pulls the latest Docker images.
+    *   It restarts the services to apply the update (`docker-compose up -d --build` or `kubectl apply -f ...`).
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+A multi-layered testing strategy will be employed to ensure code quality and system reliability.
+
+### 9.2. Test Types
+
+*   **Unit Tests:**
+    *   **Backend:** Use `pytest` to test individual functions, classes, and business logic in isolation.
+    *   **Frontend:** Use `Jest` and `React Testing Library` to test individual React components and utility functions.
+*   **Integration Tests:**
+    *   Test the interaction between different components, such as API endpoints interacting with the database. These tests will run against a dedicated test database.
+*   **End-to-End (E2E) Tests:**
+    *   Use frameworks like `Cypress` or `Playwright` to simulate real user workflows in a browser, from logging in to placing an order.
+
+### 9.3. Testing Tools
+
+*   **Backend:** `pytest`
+*   **Frontend:** `Jest`, `React Testing Library`
+*   **E2E:** `Cypress` or `Playwright`
+*   **Code Coverage:** `coverage.py`, `Jest --coverage`
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+*   **Metrics Collection:** Use **Prometheus** to scrape key metrics from the backend and infrastructure. FastAPI can expose a `/metrics` endpoint with libraries like `starlette-prometheus`.
+*   **Dashboards:** Use **Grafana** to create dashboards for visualizing metrics like request latency, error rates (5xx, 4xx), CPU/memory usage, and database performance.
+*   **Alerting:** Configure **Alertmanager** (part of the Prometheus ecosystem) to send alerts (e.g., via Slack or PagerDuty) if key metrics cross predefined thresholds.
+
+### 10.2. Logging Strategy
+
+*   **Structured Logging:** All services should produce structured logs in JSON format. This makes them machine-readable and easy to parse.
+*   **Centralized Logging:** Logs from all containers and services will be shipped to a centralized logging system like the **ELK Stack** (Elasticsearch, Logstash, Kibana) or **Grafana Loki**.
+*   **Log Levels:** Use standard log levels (`INFO`, `WARN`, `ERROR`, `DEBUG`) to control verbosity.
+*   **What to Log:**
+    *   `INFO`: Key application lifecycle events (e.g., server start, order placed).
+    *   `WARN`: Recoverable errors or unexpected situations.
+    *   `ERROR`: Unhandled exceptions and critical failures. Include stack traces.
+    *   `DEBUG`: Detailed information for development and debugging purposes (disabled in production).
+
+### 10.3. Error Handling
+
+*   The FastAPI backend will use a global exception handler to catch unhandled errors and return a standardized JSON error response (e.g., `{"error": "Internal Server Error", "status_code": 500}`).
+*   Client-side errors will be caught and reported to a service like Sentry or LogRocket for analysis.
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+A new developer can set up the local development environment as follows.
+
+**Prerequisites:**
+*   Git
+*   Docker and Docker Compose
+
+**Setup Steps:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url>
+    cd autobidder
+    ```
+
+2.  **Create an environment file:**
+    Copy the example environment file and fill in the required values.
+    ```bash
+    cp .env.example .env
+    ```
+
+3.  **Build and run the containers:**
+    This command will build the Docker images for the frontend and backend, start all services, and set up the database.
+    ```bash
+    docker-compose up --build
+    ```
+
+4.  **Access the application:**
+    *   Frontend: `http://localhost:3000`
+    *   Backend API Docs: `http://localhost:8000/docs`
+
+### 11.2. Contribution Guidelines
+
+*   **Branching Strategy:** Use the **GitFlow** model.
+    *   `main`: Contains production-ready code.
+    *   `develop`: The main development branch.
+    *   `feature/your-feature-name`: Create a new branch from `develop` for each new feature.
+    *   `fix/bug-name`: For bug fixes.
+*   **Pull Requests (PRs):**
+    *   All code must be submitted through a PR against the `develop` branch.
+    *   PRs must pass all CI checks (tests, linting).
+    *   PRs require at least one review from another team member before being merged.
+*   **Code Style:**
+    *   **Python:** Follow **PEP 8**. Use `black` for formatting and `flake8` for linting.
+    *   **JavaScript/TypeScript:** Use `Prettier` for formatting and `ESLint` for linting. Configuration files are included in the repository.

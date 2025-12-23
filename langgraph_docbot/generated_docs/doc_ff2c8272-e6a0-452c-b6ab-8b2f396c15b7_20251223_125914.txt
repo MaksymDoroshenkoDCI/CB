@@ -1,0 +1,528 @@
+Here is the complete technical documentation for the "fintom8" project, based on the provided requirements.
+
+***
+
+# Technical Documentation: fintom8
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the **fintom8** system. It details the system's architecture, technology stack, features, and operational guidelines for developers, administrators, and other technical stakeholders.
+
+### 1.1. System Purpose and Main Goals
+
+**fintom8** (public-facing name: **Delivery-Car**) is a web-based platform designed to streamline the process of purchasing vehicles from major US auto auctions, specifically **Copart** and the **Insurance Auto Auctions (IAA)**.
+
+The primary goal of the system is to simplify the auction-to-delivery workflow for a diverse range of users, making it accessible and transparent even for those with no prior experience in international car purchasing. The platform achieves this by providing a unified interface to:
+*   Search and discover vehicles from multiple auction sources.
+*   Compare vehicle details, history, and pricing.
+*   Place bids and manage orders.
+*   Track the status of a purchase from auction win to final delivery.
+
+### 1.2. Target Audience
+
+The system is designed to serve three primary user groups, each with distinct needs and access levels:
+
+*   **Private Buyers:** Individuals looking to purchase one or more cars for personal use. They require a simple, intuitive interface for browsing, ordering, and tracking their purchases.
+*   **Car Dealers & Brokers:** Professional users who manage high volumes of vehicle purchases. They require advanced functionality, efficient workflows, and detailed reporting to manage their inventory and operations.
+*   **System Administrators:** Internal staff responsible for managing the platform, overseeing orders, verifying statuses, managing users, and ensuring the smooth operation of external service integrations.
+
+### 1.3. Key Features Summary
+
+The core functionality of the fintom8 platform includes:
+
+*   **User Account Management:** A personal dashboard for users to manage their profile, orders, and preferences.
+*   **Aggregated Vehicle Search:** A powerful search engine to find vehicles across both Copart and IAA auctions with advanced filtering.
+*   **Detailed Vehicle Information:** Comprehensive vehicle "cards" displaying photos, specifications, auction details, and history reports.
+*   **Favorites (Wishlist):** Ability for users to save vehicles of interest for later review.
+*   **Order Placement & Management:** A streamlined workflow for placing an order on a vehicle.
+*   **Real-time Status Tracking:** A system for users to track the current status of their order (e.g., "Auction Won," "In Transit," "Delivered").
+*   **Purchase History:** An archive of all past orders and transactions.
+*   **Internal Chat:** A direct messaging feature for users to communicate with support managers.
+*   **Automated Notifications:** Email or in-app alerts about important status changes and updates.
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+The fintom8 system is designed using a **Monolithic-Modular Architecture**. The backend is a single, deployable FastAPI application, but it is internally structured into logical modules (e.g., authentication, cars, orders, notifications). This approach balances development speed and maintainability, allowing for a potential future transition to microservices if required.
+
+The frontend is a **Single-Page Application (SPA)** built with React/Next.js, which communicates with the backend via a RESTful API. This decoupled architecture allows for independent development, scaling, and deployment of the frontend and backend components.
+
+### 2.2. Main Components and Modules
+
+*   **Frontend Application (Client):** A React/Next.js web application that provides the user interface. It is responsible for all client-side rendering, state management, and interaction with the backend API.
+*   **Backend Application (Server):** A Python/FastAPI application that serves the REST API. It contains all the business logic, including:
+    *   **Auth Module:** Manages user registration, login, and JWT-based session management.
+    *   **Cars Module:** Handles integration with auction APIs, data ingestion, search indexing, and serving vehicle data.
+    *   **Orders Module:** Manages the entire order lifecycle, from placement to completion.
+    *   **Notifications Module:** Sends automated alerts to users via various channels.
+    *   **Chat Module:** Powers the real-time chat functionality.
+*   **Database:** A PostgreSQL database that serves as the primary data store for user information, orders, vehicle data cache, and other application state.
+*   **External Services:** Third-party APIs that provide core data:
+    *   **Copart API:** For fetching vehicle listings and auction data.
+    *   **IAA API:** For fetching vehicle listings and auction data.
+
+### 2.3. System Diagrams (Text Format)
+
+#### High-Level Component Diagram
+
+```
+[User (Browser)] <--> [Frontend (React/Next.js)] <--> [Backend API (FastAPI)]
+                                                               |
+                                     +-------------------------+-------------------------+
+                                     |                         |                         |
+                               [PostgreSQL DB]     [Copart REST API]      [IAA REST API]
+```
+
+### 2.4. Data Flow
+
+1.  **Vehicle Data Ingestion:** A scheduled background job on the backend server periodically calls the Copart and IAA APIs to fetch new and updated vehicle listings. This data is processed, standardized, and stored/cached in the PostgreSQL database to ensure fast search performance.
+2.  **User Search Request:** A user enters search criteria in the frontend application.
+3.  **API Request:** The frontend sends a GET request to the backend's `/api/v1/cars/search` endpoint.
+4.  **Data Retrieval:** The backend's Cars Module queries the PostgreSQL database to find matching vehicles.
+5.  **Response:** The backend returns a JSON object containing a list of vehicles to the frontend, which then renders the results.
+6.  **Order Placement:** A user initiates an order. The frontend sends a POST request with order details to the backend's `/api/v1/orders` endpoint.
+7.  **Order Processing:** The backend validates the request, creates a new order record in the database, and may trigger initial actions like placing a bid via the auction API.
+8.  **Status Updates:** As the order progresses (e.g., vehicle is shipped), an Administrator updates its status in the system. This triggers the Notifications Module to send an automated alert to the user.
+
+## 3. Technology Stack
+
+| Category                  | Technology / Tool         | Description                                                                 |
+| ------------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| **Backend**               | Python 3.10+              | Core programming language.                                                  |
+|                           | FastAPI                   | High-performance web framework for building the REST API.                   |
+|                           | Pydantic                  | Data validation and settings management.                                    |
+|                           | SQLAlchemy                | ORM for database interaction with PostgreSQL.                               |
+|                           | Uvicorn / Gunicorn        | ASGI server for running the FastAPI application.                            |
+| **Frontend**              | JavaScript / TypeScript   | Core programming language.                                                  |
+|                           | React / Next.js           | UI library/framework for building the single-page application.              |
+|                           | Axios                     | Promise-based HTTP client for making API requests.                          |
+|                           | Redux Toolkit / Zustand   | For state management.                                                       |
+| **Database**              | PostgreSQL 14+            | Primary relational database for storing all application data.               |
+|                           | Alembic                   | Database migration tool for SQLAlchemy.                                     |
+| **Authentication**        | JWT (JSON Web Tokens)     | For securing API endpoints and managing user sessions.                      |
+|                           | `passlib` with `bcrypt`   | Library for hashing and verifying user passwords.                           |
+| **Deployment & DevOps**   | Docker                    | Containerization for consistent development and production environments.    |
+|                           | Docker Compose            | For orchestrating multi-container applications locally.                     |
+|                           | Kubernetes or VPS/Docker  | Target deployment infrastructure.                                           |
+|                           | Nginx                     | Web server and reverse proxy.                                               |
+|                           | GitHub Actions / GitLab CI | For continuous integration and continuous deployment (CI/CD).              |
+| **Monitoring & Logging**  | ELK Stack / Loki & Grafana | For centralized logging and visualization.                                  |
+|                           | Prometheus & Grafana      | For system metrics and performance monitoring.                              |
+|                           | Sentry                    | For real-time error tracking and reporting.                                 |
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. User Account (Personal Cabinet)
+*   **Description:** A secure, personalized dashboard for each registered user.
+*   **Use Cases:**
+    *   Users can register for a new account using an email and password.
+    *   Users can log in and out of the system.
+    *   Users can view and edit their profile information.
+    *   The dashboard provides quick access to recent orders, favorites, and notifications.
+*   **Business Logic:** User registration requires email verification. Passwords must be stored securely using a strong hashing algorithm (bcrypt).
+
+#### 4.1.2. Aggregated Car Search
+*   **Description:** Allows users to search for vehicles from Copart and IAA through a single interface.
+*   **Use Cases:**
+    *   Search by keywords (e.g., "Toyota Camry").
+    *   Filter by make, model, year range, location, auction type, and vehicle condition.
+    *   Sort results by price, auction date, or other criteria.
+*   **Business Logic:** Search queries hit an indexed table in the PostgreSQL database. The data in this table is kept fresh via periodic synchronization with the auction APIs.
+
+#### 4.1.3. Order Placement and Tracking
+*   **Description:** A multi-step process to place an order and a dedicated page to track its status.
+*   **User Workflow:**
+    1.  User selects a vehicle and clicks "Place Order".
+    2.  User fills out necessary details (e.g., bidding limit, delivery address).
+    3.  User confirms the order.
+    4.  The order appears in their Personal Cabinet with the status "Pending".
+    5.  Administrators update the status as the vehicle moves through the pipeline (e.g., "Auction Won," "Payment Confirmed," "In Transit," "Delivered"). The user sees these updates in real-time.
+*   **Business Logic:** Each order is a state machine. Status transitions are controlled by Administrators and can trigger automated notifications to the user.
+
+#### 4.1.4. Internal Chat with Manager
+*   **Description:** A real-time chat interface allowing users to communicate directly with assigned support managers regarding their orders.
+*   **Use Cases:**
+    *   A user can ask a question about a specific order.
+    *   A manager can provide updates or request additional information.
+*   **Business Logic:** The chat can be implemented using WebSockets. Each chat "room" is tied to a specific user or order, ensuring privacy. Messages are persisted in the database.
+
+### 4.2. User Roles and Permissions
+
+| Feature                     | Private Buyer | Car Dealer / Broker | Administrator |
+| --------------------------- | :-----------: | :-----------------: | :-----------: |
+| View & Search Cars          |       ✅       |          ✅          |       ✅       |
+| Add to Favorites            |       ✅       |          ✅          |       N/A      |
+| Place Order                 |       ✅       |          ✅          |       N/A      |
+| View Own Order History      |       ✅       |          ✅          |       ✅       |
+| Use Internal Chat           |       ✅       |          ✅          |       ✅       |
+| Access Advanced Features    |       ❌       |          ✅          |       ✅       |
+| View All User Orders        |       ❌       |          ❌          |       ✅       |
+| Manage Order Statuses       |       ❌       |          ❌          |       ✅       |
+| Manage Users                |       ❌       |          ❌          |       ✅       |
+| Control System Integrations |       ❌       |          ❌          |       ✅       |
+
+## 5. API and Integrations
+
+### 5.1. API Endpoints (High-Level Design)
+
+The system will expose a RESTful API with versioning. All endpoints will be prefixed with `/api/v1/`.
+
+```
+# Authentication
+POST   /auth/register       - Register a new user
+POST   /auth/login          - Authenticate a user and receive a JWT
+POST   /auth/refresh        - Refresh an expired access token
+
+# Cars
+GET    /cars/search         - Search for cars with query parameters
+GET    /cars/{car_id}       - Get details for a specific car
+
+# Orders
+POST   /orders              - Place a new order
+GET    /orders              - Get a list of the current user's orders
+GET    /orders/{order_id}   - Get details for a specific order
+
+# Admin (Protected)
+GET    /admin/orders        - Get all orders for all users
+PUT    /admin/orders/{order_id} - Update an order's status or details
+
+# Chat
+GET    /chat/messages/{order_id} - Get chat history for an order
+POST   /chat/messages/{order_id} - Send a new message (WebSocket preferred for real-time)
+```
+
+### 5.2. External Service Integrations
+
+*   **Copart API & IAA API:**
+    *   **Purpose:** To fetch vehicle data, including listings, images, details, and auction schedules.
+    *   **Mechanism:** The backend will communicate with these external services via their REST APIs. This requires obtaining API keys and adhering to their usage policies (e.g., rate limits).
+    *   **Data Synchronization:** A background worker (e.g., using Celery) will run at regular intervals (e.g., every hour) to poll the APIs for new or updated vehicle information and sync it with the local PostgreSQL database.
+
+### 5.3. Data Exchange Formats
+
+All data exchanged between the frontend and backend, as well as with external APIs, will be in **JSON** format.
+
+**Example Car Object (JSON):**
+```json
+{
+  "id": 12345,
+  "vin": "JN1AZ00Z000000123",
+  "make": "Toyota",
+  "model": "Camry",
+  "year": 2022,
+  "mileage": 15000,
+  "primary_damage": "FRONT END",
+  "auction_source": "Copart",
+  "auction_date": "2023-10-27T14:00:00Z",
+  "images": [
+    "https://cdn.example.com/img1.jpg",
+    "https://cdn.example.com/img2.jpg"
+  ],
+  "current_bid": 12500.00,
+  "currency": "USD"
+}
+```
+
+## 6. Database Design
+
+### 6.1. Database Schema (High-Level)
+
+The PostgreSQL database will contain several core tables:
+
+*   `users`: Stores user account information, including hashed passwords and roles.
+*   `cars`: Caches vehicle data retrieved from auction APIs.
+*   `orders`: Contains information about each order, linked to a user and a car.
+*   `order_statuses`: A history log of all status changes for each order.
+*   `favorites`: A mapping table linking users to their favorited cars.
+*   `chat_messages`: Stores the history of messages between users and managers.
+
+### 6.2. Data Models & Relationships
+
+```plaintext
+Table: users
+- id (PK, UUID)
+- email (VARCHAR, UNIQUE)
+- password_hash (VARCHAR)
+- full_name (VARCHAR)
+- role (ENUM: 'buyer', 'dealer', 'admin')
+- created_at (TIMESTAMP)
+
+Table: cars
+- id (PK, UUID)
+- vin (VARCHAR, UNIQUE)
+- source (ENUM: 'copart', 'iaa')
+- source_id (VARCHAR)
+- make (VARCHAR)
+- model (VARCHAR)
+- year (INT)
+- details (JSONB)
+- last_synced_at (TIMESTAMP)
+
+Table: orders
+- id (PK, UUID)
+- user_id (FK -> users.id)
+- car_id (FK -> cars.id)
+- status (VARCHAR)
+- order_details (JSONB)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+
+Table: favorites
+- user_id (FK -> users.id)
+- car_id (FK -> cars.id)
+- (Composite PK on user_id, car_id)
+```
+
+**Relationships:**
+*   `users` to `orders`: One-to-Many
+*   `users` to `favorites`: Many-to-Many (via `favorites` table)
+*   `cars` to `favorites`: Many-to-Many (via `favorites` table)
+*   `cars` to `orders`: One-to-Many (assuming a car can be part of multiple order attempts if not won)
+
+### 6.3. Indexes and Constraints
+
+*   **Indexes:**
+    *   Create indexes on foreign key columns (`orders.user_id`, `orders.car_id`).
+    *   Index `cars.vin` and `cars.source_id` for quick lookups during synchronization.
+    *   Create a composite index on `cars` table fields used for searching (e.g., `make`, `model`, `year`).
+*   **Constraints:**
+    *   `users.email` must be unique.
+    *   Foreign key constraints to ensure relational integrity.
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+Authentication will be handled using **JSON Web Tokens (JWT)**.
+*   **Login Flow:**
+    1.  User submits credentials (email/password) to `/auth/login`.
+    2.  The server validates the credentials.
+    3.  On success, the server generates a short-lived **access token** (~15 minutes) and a long-lived **refresh token** (~7 days).
+    4.  The access token is sent to the client to be included in the `Authorization: Bearer <token>` header for subsequent requests.
+    5.  The refresh token is stored securely (e.g., in an HttpOnly cookie) to obtain a new access token when it expires.
+
+### 7.2. Authorization Rules
+
+Authorization will be implemented using **Role-Based Access Control (RBAC)** based on the `role` field in the `users` table.
+*   FastAPI dependencies will be used to protect endpoints. A dependency can check the JWT for the user's role and grant or deny access.
+*   For example, any endpoint prefixed with `/admin/` will require the `admin` role.
+
+```python
+# Example FastAPI dependency for authorization
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+# ... (token decoding logic) ...
+
+def require_admin_role(token: str = Depends(oauth2_scheme)):
+    user = get_user_from_token(token)
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return user
+```
+
+### 7.3. Data Protection
+
+*   **Password Hashing:** User passwords will never be stored in plaintext. They will be hashed using `bcrypt`.
+*   **Transport Security:** All communication between the client and server will be encrypted using TLS/SSL (HTTPS).
+*   **Data Validation:** Pydantic models will be used in FastAPI to rigorously validate all incoming request data to prevent injection attacks.
+*   **Secrets Management:** API keys, database credentials, and other secrets will be managed via environment variables, not hardcoded in the source code.
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+The application will be containerized using Docker for portability and consistency across environments.
+
+1.  **Build:** A CI/CD pipeline will build Docker images for the frontend and backend applications.
+2.  **Tag & Push:** The images will be tagged with the Git commit hash or version number and pushed to a container registry (e.g., Docker Hub, AWS ECR, GitLab Registry).
+3.  **Deploy:** The new images will be pulled and deployed to the target infrastructure (VPS or Kubernetes cluster). Database migrations using Alembic will be run as a step in the deployment process.
+
+### 8.2. Infrastructure Requirements
+
+*   **Option A (VPS):** A virtual private server running a Linux distribution (e.g., Ubuntu 22.04) with Docker and Docker Compose installed. Nginx will be used as a reverse proxy and for serving static frontend assets.
+*   **Option B (Kubernetes):** For higher availability and scalability, a managed Kubernetes cluster (e.g., GKE, EKS, AKS) is recommended. This would involve creating Kubernetes deployment manifests, services, and ingresses.
+
+### 8.3. CI/CD Pipeline (Example using GitHub Actions)
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: your-repo/fintom8-backend:latest
+
+      - name: Build and push frontend image
+        # ... similar step for frontend ...
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /path/to/app
+            docker-compose pull
+            docker-compose up -d
+            # Run database migrations
+            docker-compose exec backend alembic upgrade head
+```
+
+### 8.4. Environment Configuration
+
+Configuration will be managed via environment variables.
+
+**Example `.env.template` file:**
+```ini
+# Application
+ENVIRONMENT=development # or production
+SECRET_KEY=a_very_secret_key_for_jwt
+
+# Database
+POSTGRES_USER=fintom8
+POSTGRES_PASSWORD=supersecretpassword
+POSTGRES_DB=fintom8_db
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+# External APIs
+COPART_API_KEY=...
+IAA_API_KEY=...
+```
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+A multi-layered testing strategy based on the "testing pyramid" will be employed to ensure code quality and system reliability.
+
+### 9.2. Test Types
+
+*   **Unit Tests:**
+    *   **Backend:** `pytest` will be used to test individual functions and business logic within the FastAPI application in isolation.
+    *   **Frontend:** Jest and React Testing Library (RTL) will be used to test individual React components.
+*   **Integration Tests:**
+    *   **Backend:** Tests will cover the API endpoints by making HTTP requests to a running test application connected to a temporary test database. This verifies that modules and services work together correctly.
+*   **End-to-End (E2E) Tests:**
+    *   Tools like **Cypress** or **Playwright** will be used to automate browser interactions and test critical user workflows from start to finish (e.g., user registration -> search -> order placement -> logout).
+
+### 9.3. Testing Tools
+
+*   **Backend:** `pytest`, `httpx`
+*   **Frontend:** `Jest`, `React Testing Library`
+*   **E2E:** `Cypress` or `Playwright`
+*   **CI:** All tests will be automatically run in the CI/CD pipeline on every push and pull request.
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+*   **Metrics Collection:** **Prometheus** will be used to scrape key performance indicators (KPIs) from the backend application, such as request latency, error rates (HTTP 5xx), and database connection pool usage.
+*   **Dashboards:** **Grafana** will be used to create dashboards for visualizing the metrics collected by Prometheus, providing a real-time overview of system health.
+
+### 10.2. Logging Strategy
+
+*   **Structured Logging:** All services will output logs in a structured format (JSON). This allows for easy parsing, filtering, and analysis.
+*   **Centralized Logging:** Logs from all containers and services will be collected and forwarded to a centralized logging system like the **ELK Stack** (Elasticsearch, Logstash, Kibana) or **Grafana Loki**. This enables searching and analyzing logs from a single interface.
+
+### 10.3. Error Handling
+
+*   **Real-time Error Tracking:** An external service like **Sentry** will be integrated into both the frontend and backend to capture, aggregate, and alert on unhandled exceptions in real-time. This provides stack traces and context to help developers debug issues quickly.
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+1.  **Prerequisites:** Ensure you have Git, Docker, and Docker Compose installed on your local machine.
+2.  **Clone Repository:** `git clone <repository_url>`
+3.  **Configuration:** Copy the `.env.template` file to `.env` and fill in the required values for your local development environment.
+4.  **Build & Run:** `docker-compose up --build`
+5.  The system should now be running:
+    *   Frontend: `http://localhost:3000`
+    *   Backend API: `http://localhost:8000/docs`
+
+### 11.2. Development Setup
+
+The `docker-compose.yml` file orchestrates the local development environment.
+
+**Example `docker-compose.yml`:**
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
+```
+
+### 11.3. Contribution Guidelines
+
+*   **Branching Strategy:** Use the **GitFlow** model. All new features should be developed in `feature/` branches off of `develop`. Bugfixes are done in `hotfix/` branches off of `main`.
+*   **Code Style:**
+    *   **Python:** Follow PEP 8. Use **Black** for auto-formatting and **Flake8** for linting.
+    *   **JavaScript/TypeScript:** Use **Prettier** for code formatting and **ESLint** for linting.
+*   **Pull Requests (PRs):**
+    *   All changes must be submitted through a PR to the `develop` branch.
+    *   A PR must pass all CI checks (linting, testing).
+    *   A PR must be reviewed and approved by at least one other team member before merging.

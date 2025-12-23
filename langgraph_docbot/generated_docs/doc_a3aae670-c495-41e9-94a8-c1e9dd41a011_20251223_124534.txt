@@ -1,0 +1,462 @@
+Of course. Here is the complete technical documentation for the **fintom8** project, based on the provided requirements.
+
+***
+
+# Technical Documentation: fintom8
+
+## 1. Introduction and Overview
+
+### 1.1. System Purpose and Main Goals
+
+**fintom8** is an automated trading system designed for participation in electricity auctions. Its primary purpose is to provide a competitive advantage to energy traders by automating the entire lifecycle of auction participation.
+
+The main goals of the system are:
+*   **Automated Monitoring:** Continuously monitor the Ukrainian Energy Exchange (UEB) platform for new energy auction lots.
+*   **Intelligent Analysis:** Analyze new auction lots against a predefined set of user-configurable rules and criteria to determine participation eligibility.
+*   **Automated Bidding:** Automatically and instantly submit bids for suitable auctions based on the analysis results and strategic parameters.
+*   **Real-time Notifications:** Provide immediate status updates on system activities, including new lot discovery, bid placements, and operational errors.
+
+### 1.2. Target Audience
+
+The system is designed for professional users within the energy sector, including:
+*   **Electricity Traders:** Individuals and teams who actively participate in energy markets and require high-speed, automated tools to execute their trading strategies.
+*   **Analytical Departments of Energy Companies:** Teams responsible for market analysis and strategy development who can use the system to execute and test strategies algorithmically.
+
+### 1.3. Key Features Summary
+
+*   **Microservice Architecture:** A robust, scalable, and maintainable system built on a microservice-based architecture.
+*   **Real-time Auction Scraping:** A dedicated service (`ueb-scraper`) for parsing the UEB platform at high frequency.
+*   **Rule-Based Analysis Engine:** A powerful analysis service (`auction-analyzer`) that evaluates auctions based on complex, user-defined rules stored in a database.
+*   **Automated Bid Placement:** A secure bidding service (`bid-placer`) that interacts directly with the UEB's official API to place bids.
+*   **Instant Notifications:** A notification service (`notification-service`) that pushes critical updates to users via Telegram.
+*   **Admin Panel:** A web-based user interface for managing bidding rules, monitoring system activity, and viewing auction history.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+fintom8 is built on a **microservice architecture**. This design choice promotes scalability, resilience, and maintainability. Each core business function is encapsulated within an independent, loosely coupled service. Services communicate asynchronously via a message broker (RabbitMQ), which ensures that the failure of one component does not cascade and bring down the entire system.
+
+The system is designed to be cloud-native, containerized, and orchestrated for high availability and performance.
+
+### 2.2. Main Components and Modules
+
+The system consists of four primary backend microservices and one frontend application:
+
+*   **`ueb-scraper`:** This service is responsible for continuously polling and parsing the Ukrainian Energy Exchange website for new auction lots. Once a new lot is identified, it is published as a message to the message broker.
+*   **`auction-analyzer`:** This service consumes messages about new lots from the message broker. It fetches the relevant user-defined bidding rules from the PostgreSQL database and performs an analysis. If the lot meets the criteria defined in the rules, it generates a "place bid" command and publishes it.
+*   **`bid-placer`:** This service consumes "place bid" commands. It is responsible for securely interacting with the official UEB API to submit the bid. It handles authentication, rate limiting, and error handling for API interactions. It then publishes the result of the bid (success or failure) as a new message.
+*   **`notification-service`:** This service acts as a central hub for user communication. It subscribes to messages from all other services (e.g., "new lot found," "bid placed," "API error") and formats them into user-friendly notifications, which are then sent to the user via the Telegram Bot API.
+*   **Admin Panel (UI):** A React-based Single Page Application (SPA) that allows users to log in, manage their bidding strategies (rules), view the status of placed bids, and monitor the overall system health.
+
+### 2.3. System Diagrams (Text Format)
+
+#### Component Diagram
+
+```
+[User] <--> [Admin Panel (React)] <--> [API Gateway]
+                                          |
+                +-------------------------+-------------------------+
+                |                         |                         |
+        [auction-analyzer] <--> [PostgreSQL DB] <--> [bid-placer]
+                ^                         ^                         ^
+                |                         |                         |
+                +---------------- [RabbitMQ Message Broker] --------+
+                                          ^
+                                          |
+                                    [ueb-scraper]
+                                          |
+                                          v
+                                 [UEB Website/Platform]
+
+[notification-service] <--> [RabbitMQ] --> [Telegram Bot API] --> [User]
+```
+
+### 2.4. Data Flow
+
+The primary data flow for an automated bid is as follows:
+
+1.  **Scraping:** The `ueb-scraper` service polls the UEB website every 5 minutes.
+2.  **Publication:** Upon detecting a new auction lot, it publishes a message containing the lot details to a `new_lots` queue in RabbitMQ.
+3.  **Consumption & Analysis:** The `auction-analyzer` service consumes the message from the `new_lots` queue. It queries the PostgreSQL database for all active `user_rules`.
+4.  **Decision:** It evaluates the lot against each rule. If a match is found (e.g., price is within range, volume is acceptable), it creates a "place bid" command.
+5.  **Command Publication:** The `auction-analyzer` publishes the command to a `place_bid_commands` queue in RabbitMQ.
+6.  **Bid Placement:** The `bid-placer` service consumes the command from the `place_bid_commands` queue. It authenticates with the UEB API using a stored API key and submits the bid.
+7.  **Result Publication:** After receiving a response from the UEB API, `bid-placer` publishes the outcome (e.g., `bid_successful` or `bid_failed`) to a `bid_results` queue.
+8.  **Notification:** The `notification-service`, which listens to all relevant queues (`new_lots`, `bid_results`, `system_errors`), consumes the messages. It formats a notification and sends it to the user's configured Telegram chat via the Telegram Bot API.
+
+---
+
+## 3. Technology Stack
+
+| Category                  | Technology / Tool         | Purpose                                                      |
+| ------------------------- | ------------------------- | ------------------------------------------------------------ |
+| **Programming Languages** | Go (Golang)               | Primary language for all backend microservices (high performance, concurrency). |
+|                           | TypeScript                | Language for the frontend Admin Panel (type safety, scalability). |
+| **Frameworks & Libraries**| React                     | Frontend library for building the Admin Panel UI.            |
+|                           | Colly                     | Go library for web scraping (`ueb-scraper` service).          |
+|                           | Gin / Echo (TBD)          | Go web framework for the API Gateway serving the Admin Panel. |
+| **Databases & Storage**   | PostgreSQL                | Primary relational database for storing auctions, bids, and user rules. |
+| **Message Broker**        | RabbitMQ                  | Asynchronous communication backbone between microservices.   |
+| **Development Tools**     | Docker / Docker Compose   | Containerization for local development and production environments. |
+|                           | GitLab                    | Source code management and CI/CD.                            |
+| **Deployment Tools**      | Kubernetes (AWS EKS)      | Container orchestration for production environments.         |
+|                           | Helm                      | Package manager for Kubernetes to simplify deployments.      |
+| **Secret Management**     | HashiCorp Vault           | Secure storage and management of API keys, secrets, and credentials. |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. Automated Auction Monitoring and Bidding
+The core of the system. It operates 24/7, identifying and acting on auction opportunities in near real-time. The logic is deterministic and follows user-defined rules, removing the emotional element from trading and ensuring high-speed execution.
+
+#### 4.1.2. Rule Management Admin Panel
+A user-friendly web interface where traders can perform the following actions:
+*   **Authentication:** Securely log in to the system.
+*   **Rule Creation:** Define new bidding strategies. A rule consists of multiple conditions, such as `max_price`, `min_volume`, specific auction types, or other custom criteria (stored in a flexible JSON field).
+*   **Rule Management:** View, edit, activate, or deactivate existing rules.
+*   **Dashboard:** Monitor the system's activity, including recently found auctions, bids placed, and bid statuses (won, lost, pending).
+*   **History:** View a historical log of all actions performed by the system.
+
+### 4.2. Use Cases
+
+**Use Case 1: Trader Configures a New Bidding Strategy**
+
+*   **Actor:** Electricity Trader
+*   **Goal:** To automatically bid on any nighttime electricity auction with a volume greater than 50 MW and a price below a certain threshold.
+*   **Steps:**
+    1.  The trader logs into the fintom8 Admin Panel.
+    2.  Navigates to the "Rules" section and clicks "Create New Rule".
+    3.  Fills out the form:
+        *   Rule Name: "Nighttime High Volume"
+        *   Condition 1: `start_time` is between 22:00 and 06:00.
+        *   Condition 2: `min_volume` > 50.
+        *   Condition 3: `max_price` < 1500 UAH/MWh.
+        *   Bid Amount: `max_price` (or a formula like `max_price - 1%`).
+    4.  Saves and activates the rule.
+    5.  The system now automatically uses this logic in the `auction-analyzer` service.
+
+### 4.3. User Workflows
+
+**Onboarding a New User:**
+1.  Admin creates a new user account.
+2.  User receives credentials and logs into the Admin Panel.
+3.  User configures their Telegram account ID in their profile for notifications.
+4.  User navigates to the "Rules" section to define their first bidding strategy.
+5.  User activates the rule and begins monitoring the dashboard for system activity.
+
+---
+
+## 5. API and Integrations
+
+### 5.1. Internal APIs
+An internal API Gateway will expose RESTful endpoints for the Admin Panel to communicate with the backend services. This gateway will handle authentication and route requests to the appropriate service.
+
+### 5.2. External Service Integrations
+
+#### 5.2.1. Ukrainian Energy Exchange (UEB) API
+
+This is the most critical integration for placing bids.
+
+*   **Service:** `bid-placer`
+*   **Authentication:** API Key sent in the `Authorization` header.
+    *   Example: `Authorization: Bearer <UEB_API_KEY>`
+*   **Data Format:** JSON
+*   **Key Endpoint (Example):** `POST /api/v1/bids`
+    *   This endpoint is used to submit a new bid for a specific auction.
+    *   **Request Body Example:**
+        ```json
+        {
+          "auction_id": "ueb-lot-12345",
+          "bid_price": 1495.50,
+          "bid_volume": 60,
+          "currency": "UAH"
+        }
+        ```
+    *   **Success Response (201 Created):**
+        ```json
+        {
+          "status": "success",
+          "bid_id": "fintom8-bid-abcde",
+          "message": "Bid successfully accepted and is pending processing."
+        }
+        ```
+
+#### 5.2.2. Telegram Bot API
+
+This integration is used for sending real-time notifications to users.
+
+*   **Service:** `notification-service`
+*   **Authentication:** Bot Token included in the request URL.
+*   **API Endpoint:** `https://api.telegram.org/bot<BOT_TOKEN>/sendMessage`
+*   **Method:** `POST`
+*   **Request Body Example:**
+    ```json
+    {
+      "chat_id": "USER_TELEGRAM_CHAT_ID",
+      "text": "✅ *Bid Placed Successfully!*\n\n*Auction ID:* ueb-lot-12345\n*Amount:* 1495.50 UAH\n*Volume:* 60 MW",
+      "parse_mode": "Markdown"
+    }
+    ```
+
+---
+
+## 6. Database Design
+
+### 6.1. Database Schema
+
+The system uses a PostgreSQL relational database. The core tables are:
+
+*   **`auctions`**: Stores information about every auction lot discovered by the scraper.
+    *   `id` (PK, BIGSERIAL)
+    *   `ueb_id` (VARCHAR(255), UNIQUE): The unique identifier from the UEB platform.
+    *   `start_time` (TIMESTAMPZ)
+    *   `end_time` (TIMESTAMPZ)
+    *   `status` (VARCHAR(50)): e.g., 'OPEN', 'CLOSED', 'CANCELLED'.
+    *   `payload` (JSONB): Raw data scraped from the platform for future analysis.
+    *   `created_at` (TIMESTAMPZ)
+
+*   **`bids`**: A log of every bid placed by the system.
+    *   `id` (PK, BIGSERIAL)
+    *   `auction_id` (FK to `auctions.id`)
+    *   `user_rule_id` (FK to `user_rules.id`): The rule that triggered this bid.
+    *   `amount` (DECIMAL(10, 2))
+    *   `volume` (DECIMAL(10, 2))
+    *   `status` (VARCHAR(50)): e.g., 'PLACED', 'WON', 'LOST', 'ERROR'.
+    *   `response_payload` (JSONB): The raw response from the UEB API.
+    *   `created_at` (TIMESTAMPZ)
+
+*   **`user_rules`**: The user-defined bidding strategies.
+    *   `id` (PK, BIGSERIAL)
+    *   `user_id` (FK to `users.id`)
+    *   `rule_name` (VARCHAR(255))
+    *   `is_active` (BOOLEAN, default: false)
+    *   `max_price` (DECIMAL(10, 2))
+    *   `min_volume` (DECIMAL(10, 2))
+    *   `conditions_json` (JSONB): A flexible field for storing complex conditions, e.g., `{"allowed_hours": [22, 23, 0, 1, 2, 3, 4, 5]}`.
+    *   `created_at` (TIMESTAMPZ)
+    *   `updated_at` (TIMESTAMPZ)
+
+*   **`users`**: Stores user account information for the Admin Panel.
+    *   `id` (PK, BIGSERIAL)
+    *   `username` (VARCHAR(100), UNIQUE)
+    *   `password_hash` (VARCHAR(255))
+    *   `telegram_chat_id` (VARCHAR(100))
+    *   `role` (VARCHAR(50)): e.g., 'ADMIN', 'TRADER'.
+
+### 6.2. Relationships
+
+*   A `user` can have many `user_rules`.
+*   A `bid` belongs to one `auction` and one `user_rule`.
+*   An `auction` can have many `bids` (from different rule executions).
+
+### 6.3. Indexes and Constraints
+
+*   Indexes should be placed on foreign key columns (`auction_id`, `user_rule_id`, `user_id`).
+*   A unique index on `auctions.ueb_id` is critical to prevent duplicate entries.
+*   An index on `user_rules.is_active` will speed up queries for active rules.
+*   An index on `bids.created_at` for efficient time-based querying.
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+*   **Admin Panel:** Authentication will be handled using JSON Web Tokens (JWT).
+    1.  User submits `username` and `password` to a `/login` endpoint.
+    2.  The server validates credentials.
+    3.  If valid, it generates a short-lived access token and a long-lived refresh token.
+    4.  The access token is sent with every subsequent API request from the frontend.
+*   **Passwords:** User passwords will be securely hashed using the `bcrypt` algorithm before being stored in the `users` table.
+
+### 7.2. Authorization Rules
+
+*   The system will implement Role-Based Access Control (RBAC).
+*   An `ADMIN` role will have full system access.
+*   A `TRADER` role will only be able to manage their own rules and view their own bidding history.
+*   Authorization will be enforced at the API Gateway level.
+
+### 7.3. Data Protection
+
+*   **Secrets Management:** All sensitive information, including database credentials, UEB API keys, and Telegram Bot tokens, **must not** be hardcoded. They will be stored and managed securely in **HashiCorp Vault**. Services will authenticate with Vault to retrieve secrets at runtime.
+*   **Data in Transit:** All communication between the user's browser and the backend, as well as between services where possible, will be encrypted using TLS.
+
+### 7.4. Security Best Practices
+
+*   Regular dependency scanning to identify and patch vulnerable libraries.
+*   Strict validation of all user input to prevent injection attacks.
+*   Adherence to the principle of least privilege for all service-to-service communication and database access.
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+The system is deployed using a container-based approach to ensure consistency across environments.
+1.  A developer pushes code to a feature branch in GitLab.
+2.  A merge request triggers the CI/CD pipeline.
+3.  The pipeline builds, tests, and scans the code.
+4.  Upon merge to `main` (for production) or `develop` (for staging), the pipeline builds a new Docker image for the relevant service.
+5.  The image is pushed to a container registry (e.g., AWS ECR).
+6.  The pipeline then uses Helm to deploy the new image version to the target Kubernetes cluster.
+
+### 8.2. Infrastructure Requirements
+
+*   **Cloud Provider:** AWS
+*   **Container Orchestration:** Amazon Elastic Kubernetes Service (EKS)
+*   **Database:** Amazon RDS for PostgreSQL
+*   **Message Broker:** A managed RabbitMQ cluster (e.g., from CloudAMQP or self-hosted on EC2).
+*   **Secrets:** HashiCorp Vault (self-hosted or via HCP).
+*   **Logging/Monitoring:** A dedicated cluster for the ELK stack and Prometheus.
+
+### 8.3. CI/CD Pipeline
+
+The CI/CD pipeline will be managed using **GitLab CI**. A `.gitlab-ci.yml` file in the root of each service's repository will define the stages.
+
+**Example `.gitlab-ci.yml` snippet:**
+```yaml
+stages:
+  - test
+  - build
+  - deploy
+
+unit_tests:
+  stage: test
+  image: golang:1.19
+  script:
+    - go test ./... -coverprofile=coverage.out
+    - go tool cover -func=coverage.out
+
+build_image:
+  stage: build
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  only:
+    - main
+
+deploy_to_prod:
+  stage: deploy
+  script:
+    - helm upgrade --install fintom8-bid-placer ./helm-chart --set image.tag=$CI_COMMIT_SHA
+  only:
+    - main
+```
+
+### 8.4. Environment Configuration
+
+Three distinct environments will be maintained:
+*   **`dev`:** Local developer environments managed via `docker-compose`.
+*   **`staging`:** A production-like environment on AWS for integration testing and QA.
+*   **`prod`:** The live environment for real-money trading.
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+A multi-layered testing strategy will be employed to ensure system reliability and correctness.
+
+### 9.2. Test Types
+
+*   **Unit Tests:**
+    *   **Scope:** Individual functions and methods within each Go microservice.
+    *   **Goal:** To verify the correctness of business logic in isolation.
+    *   **Requirement:** A minimum of **80% code coverage** is mandatory.
+    *   **Tools:** Go's standard `testing` package.
+
+*   **Integration Tests:**
+    *   **Scope:** The interaction between a service and its external dependencies (Database, RabbitMQ).
+    *   **Goal:** To verify that services can correctly communicate, publish/consume messages, and read/write data.
+    *   **Example:** A test that publishes a mock "new lot" message to RabbitMQ and asserts that the `auction-analyzer` correctly processes it and writes to the database.
+
+*   **End-to-End (E2E) Tests:**
+    *   **Scope:** The user-facing Admin Panel.
+    *   **Goal:** To simulate real user workflows from the browser, ensuring the entire system works together as expected.
+    *   **Tools:** **Cypress**.
+    *   **Example:** A test script that logs in, creates a new rule, and then checks the dashboard for expected updates.
+
+### 9.3. Testing Tools
+
+*   **Backend:** `testing` package (Go), `testify/assert`.
+*   **Frontend:** `jest`, `react-testing-library` (Unit), `Cypress` (E2E).
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+A proactive monitoring strategy will be implemented using Prometheus and Grafana.
+
+*   **Prometheus:** Will be used to scrape and store time-series metrics from all microservices. Each service will expose a `/metrics` endpoint with data.
+*   **Grafana:** Will be used to create dashboards for visualizing the metrics collected by Prometheus.
+*   **Key Metrics to Monitor:**
+    *   **System Metrics:** CPU usage, memory consumption, disk I/O per service.
+    *   **Business Metrics:** Number of lots scraped per hour, number of bids placed, bid success/failure rate, queue depth in RabbitMQ.
+    *   **Latency:** API response times, message processing time.
+*   **Alerting:** Alertmanager will be configured to send critical alerts (e.g., service down, high error rate, deep message queue) to a dedicated engineering channel.
+
+### 10.2. Logging Strategy
+
+A centralized logging strategy will be implemented using the **ELK Stack**.
+
+*   **Elasticsearch:** Stores and indexes the logs.
+*   **Logstash:** Processes and enriches incoming logs before sending them to Elasticsearch.
+*   **Kibana:** A web interface for searching, analyzing, and visualizing the logs.
+*   **Format:** All services **must** produce **structured logs in JSON format**. This allows for easy parsing and powerful querying in Kibana. Each log entry should contain a correlation ID to trace a single request across all microservices.
+
+**Example JSON Log Entry:**
+```json
+{
+  "timestamp": "2023-10-27T10:00:00Z",
+  "level": "INFO",
+  "service": "auction-analyzer",
+  "correlation_id": "d8a1f4b7-5b6a-4a2e-8f0b-1e2c3d4a5b6c",
+  "message": "Analyzing new lot",
+  "lot_id": "ueb-lot-12345"
+}
+```
+
+### 10.3. Error Handling
+
+Services should gracefully handle errors (e.g., API downtime from UEB, database connection issues) and implement retry mechanisms with exponential backoff where appropriate. All critical errors must be logged with a `ERROR` level and trigger alerts.
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+To set up the project locally, a new developer needs Docker and Docker Compose installed.
+
+1.  Clone the master repository containing all services.
+2.  Navigate to the root directory.
+3.  Create a `.env` file from the `.env.example` template and populate it with necessary local credentials (use non-production keys).
+4.  Run the command: `docker-compose up --build`
+5.  This command will build Docker images for all services and start the entire stack, including PostgreSQL, RabbitMQ, and the application services.
+6.  The Admin Panel should be accessible at `http://localhost:3000` and the API Gateway at `http://localhost:8080`.
+
+### 11.2. Development Setup
+
+*   **Code Style:** All Go code must be formatted with `gofmt`. A pre-commit hook should be configured to enforce this.
+*   **Environment Variables:** All configuration should be managed via environment variables, not hardcoded values.
+*   **Database Migrations:** Use a tool like `golang-migrate/migrate` to manage database schema changes. Migration files should be committed to the repository.
+
+### 11.3. Contribution Guidelines
+
+1.  Create a new feature branch from the `develop` branch (e.g., `feature/TICKET-123-add-new-rule-condition`).
+2.  Write your code, including comprehensive unit tests with >80% coverage.
+3.  Ensure all tests pass locally.
+4.  Update any relevant documentation.
+5.  Push your branch to GitLab and create a Merge Request targeting the `develop` branch.
+6.  Assign at least one other developer for a code review.
+7.  Once the MR is approved and the CI pipeline passes, it can be merged.

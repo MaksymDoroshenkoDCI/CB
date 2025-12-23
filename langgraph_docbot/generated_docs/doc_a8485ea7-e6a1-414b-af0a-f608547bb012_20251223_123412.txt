@@ -1,0 +1,527 @@
+Here is the complete technical documentation for the "fintom8" project, based on the provided requirements.
+
+***
+
+# Technical Documentation: fintom8
+
+## Table of Contents
+1.  **[Introduction and Overview](#1-introduction-and-overview)**
+2.  **[System Architecture](#2-system-architecture)**
+3.  **[Technology Stack](#3-technology-stack)**
+4.  **[Functionality](#4-functionality)**
+5.  **[API and Integrations](#5-api-and-integrations)**
+6.  **[Database Design](#6-database-design)**
+7.  **[Security](#7-security)**
+8.  **[Deployment and Infrastructure](#8-deployment-and-infrastructure)**
+9.  **[Testing](#9-testing)**
+10. **[Monitoring and Logging](#10-monitoring-and-logging)**
+11. **[Developer Guide](#11-developer-guide)**
+
+---
+
+## 1. Introduction and Overview
+
+### 1.1 System Purpose and Main Goals
+
+**fintom8** is a comprehensive, real-time fleet management system designed to provide businesses with complete visibility and control over their vehicle fleets. The primary goal of the system is to optimize fleet operations, reduce operational costs, enhance driver safety, and improve overall efficiency.
+
+The system solves key challenges in fleet management by providing:
+*   Accurate, live tracking of all vehicles.
+*   Insights into fuel consumption and costs.
+*   Proactive vehicle maintenance scheduling to prevent breakdowns.
+*   Data-driven analysis of driver behavior to promote safety.
+*   Intelligent route optimization to save time and fuel.
+*   Automated reporting for streamlined administrative and analytical tasks.
+
+### 1.2 Target Audience
+
+The system is designed for a range of users within an organization, each with specific roles and access levels:
+
+*   **Fleet Managers:** Oversee the entire fleet, monitor vehicle health, track performance metrics, and manage daily operations.
+*   **Logistics Coordinators:** Plan and optimize routes, dispatch drivers, and monitor delivery progress.
+*   **Drivers:** Use the mobile application for route guidance, communication, and logging trip data.
+*   **Company Administrators:** Manage user accounts, system settings, and access high-level business intelligence reports.
+
+### 1.3 Key Features Summary
+
+The core functionality of the fintom8 system includes:
+
+*   **Real-time GPS Tracking:** Live map view of all vehicles with detailed location, speed, and status information.
+*   **Fuel Consumption Monitoring:** Tracks fuel usage per vehicle, identifies anomalies, and generates reports to control costs.
+*   **Maintenance Scheduling:** Automated scheduling of routine maintenance based on mileage, engine hours, or time intervals.
+*   **Driver Behavior Analytics:** Monitors metrics like speeding, harsh braking, rapid acceleration, and idle time to score and train drivers.
+*   **Route Optimization:** Algorithm-based route planning to find the most efficient paths based on traffic, distance, and delivery windows.
+*   **Automated Reporting:** Generates customizable daily, weekly, and monthly reports on key performance indicators (KPIs) like mileage, fuel efficiency, and driver performance.
+
+---
+
+## 2. System Architecture
+
+### 2.1 Overall Architecture Description
+
+The fintom8 system is built on a modern, scalable, service-oriented architecture (SOA). The architecture is designed for high availability, fault tolerance, and maintainability. It separates concerns into distinct layers: a presentation layer (web and mobile), a backend services layer, and a data persistence layer.
+
+The backend is composed of several microservices, each responsible for a specific business domain. This allows for independent development, deployment, and scaling of individual components. Communication between services and clients is handled via a RESTful API Gateway.
+
+### 2.2 Main Components and Modules
+
+*   **Web Frontend (React):** A Single Page Application (SPA) providing a comprehensive dashboard for fleet managers, coordinators, and administrators.
+*   **Mobile Application (Flutter):** A cross-platform mobile app for drivers, offering route navigation, task management, and communication features.
+*   **API Gateway:** A single entry point for all client requests. It routes traffic to the appropriate backend service, handles authentication, and performs rate limiting.
+*   **GPS Tracking Service:** Ingests and processes real-time GPS data from vehicle-mounted devices.
+*   **Analytics Service:** Performs complex calculations for driver behavior, fuel consumption, and route optimization.
+*   **Reporting Service:** Generates and delivers scheduled or on-demand reports in various formats (PDF, CSV).
+*   **Core Services (User, Vehicle, Maintenance):** Manage core business entities like users, vehicles, and maintenance schedules.
+
+### 2.3 System Diagrams (Text Format)
+
+#### Component Diagram
+
+```
+[Web App (React)] <--> [API Gateway] <--> [User Service]
+       ^                     ^
+       |                     |
+[Mobile App (Flutter)]       |
+       |                     |
+       v                     v
+[GPS Devices] -> [GPS Tracking Service] -> [API Gateway] <--> [Analytics Service]
+                                             ^     ^
+                                             |     |
+                                             |     +------> [Reporting Service]
+                                             |
+                                             +------------> [Vehicle Service]
+                                             |
+                                             +------------> [Maintenance Service]
+
+[All Services] <--> [PostgreSQL DB]
+[GPS Tracking Service & Analytics Service] <--> [Redis Cache]
+```
+
+### 2.4 Data Flow
+
+1.  **GPS Data Ingestion:** GPS devices installed in vehicles periodically send data packets (location, speed, engine diagnostics) to the **GPS Tracking Service** via a dedicated TCP or HTTP endpoint.
+2.  **Data Processing:** The **GPS Tracking Service** parses the data, stores the raw pings in PostgreSQL, and pushes real-time location updates to a Redis Pub/Sub channel.
+3.  **Real-time Updates:** The **Web Frontend** and **Mobile App** subscribe to real-time updates via WebSockets connected to the **API Gateway**, which listens to the Redis channel. This allows for live vehicle tracking on the map.
+4.  **User Interaction:** A **Fleet Manager** logs into the **Web App**. The app communicates with the **API Gateway** to fetch data from various services (e.g., `GET /vehicles`, `GET /reports`).
+5.  **Analytics & Reporting:** The **Analytics Service** periodically queries the PostgreSQL database to process historical data for driver scoring and fuel analysis. The **Reporting Service** uses this processed data to generate scheduled reports.
+6.  **Driver Interaction:** A **Driver** uses the **Mobile App** to view their assigned route, which is generated by the **Analytics Service** (route optimization) and served via the **API Gateway**.
+
+---
+
+## 3. Technology Stack
+
+### 3.1 Programming Languages
+
+*   **Backend:** Python 3.10+
+*   **Frontend:** JavaScript (ES6+), TypeScript
+*   **Mobile:** Dart
+
+### 3.2 Frameworks and Libraries
+
+*   **Backend:** FastAPI (for high-performance REST APIs)
+*   **Frontend:** React, Redux (for state management)
+*   **Mobile:** Flutter
+*   **ORM:** SQLAlchemy (with Alembic for migrations)
+
+### 3.3 Databases and Data Storage
+
+*   **Primary Database:** PostgreSQL 14+ (for structured relational data)
+*   **Caching & Messaging:** Redis (for caching frequently accessed data and real-time messaging via Pub/Sub)
+
+### 3.4 Development Tools
+
+*   **Version Control:** Git (hosted on GitHub/GitLab)
+*   **Package Managers:** `pip` (Python), `npm` (Node.js), `pub` (Dart)
+*   **IDE:** VS Code, PyCharm, Android Studio
+
+### 3.5 Deployment Tools
+
+*   **Containerization:** Docker
+*   **Orchestration:** Kubernetes (K8s)
+*   **CI/CD:** GitHub Actions / GitLab CI
+
+---
+
+## 4. Functionality
+
+### 4.1 Detailed Feature Descriptions
+
+#### 4.1.1 Real-time GPS Tracking
+*   **Description:** Displays the live location of all vehicles on an interactive map. Vehicle icons update in real-time and can be color-coded based on status (e.g., moving, idle, offline).
+*   **Use Cases:**
+    *   A fleet manager can monitor the exact location of any vehicle at any time.
+    *   A logistics coordinator can track a delivery's progress against its schedule.
+*   **Business Logic:** The system ingests GPS pings every 10-30 seconds. It stores a history of locations to reconstruct trips and calculate distance traveled.
+
+#### 4.1.2 Fuel Consumption Monitoring
+*   **Description:** Integrates with vehicle OBD-II ports or fuel level sensors to track fuel usage. The system calculates fuel efficiency (MPG/km/L) and flags potential fuel theft or wastage.
+*   **Use Cases:**
+    *   An administrator can generate a report on the total fuel cost for the entire fleet over a month.
+    *   A manager can receive an alert for a sudden drop in fuel level, indicating possible theft.
+*   **Business Logic:** The system correlates fuel level data with distance traveled and engine status. Algorithms detect anomalies by comparing current consumption against historical averages for the vehicle model.
+
+#### 4.1.3 Maintenance Scheduling
+*   **Description:** Automates the creation and tracking of maintenance schedules. Alerts are sent to fleet managers when a vehicle is due for service based on mileage, engine hours, or a set date.
+*   **Use Cases:**
+    *   A fleet manager receives an email notification that "Vehicle A" is due for an oil change in 500 miles.
+    *   A user can view the complete maintenance history for any vehicle in the fleet.
+*   **Business Logic:** Each vehicle has configurable maintenance plans. The system continuously monitors vehicle telemetry (odometer readings, engine hours) and triggers alerts when a predefined threshold is reached.
+
+#### 4.1.4 Driver Behavior Analytics
+*   **Description:** Analyzes telemetry data to identify and score unsafe or inefficient driving habits such as speeding, harsh braking, rapid acceleration, and excessive idling.
+*   **Use Cases:**
+    *   A fleet manager can view a leaderboard of the safest drivers.
+    *   A driver can see their own safety score and areas for improvement in the mobile app.
+*   **Business Logic:** An algorithm processes GPS and accelerometer data to detect events. Each event is assigned a severity score, which contributes to an overall driver safety rating.
+
+#### 4.1.5 Route Optimization
+*   **Description:** A tool for planning multi-stop routes that are optimized for time and distance, considering real-time traffic data and delivery time windows.
+*   **Use Cases:**
+    *   A logistics coordinator inputs 20 delivery addresses, and the system generates the most efficient route for a single driver.
+    *   The system can re-optimize a route mid-trip if unexpected traffic delays occur.
+*   **Business Logic:** Integrates with a third-party mapping API (e.g., Google Maps, Mapbox) to calculate travel times and generate optimal route sequences using algorithms like the Traveling Salesperson Problem (TSP) solvers.
+
+---
+
+## 5. API and Integrations
+
+### 5.1 API Endpoints (Examples)
+
+The system exposes a RESTful API. All endpoints are prefixed with `/api/v1`. Authentication is required for all endpoints.
+
+| Method | Endpoint                             | Description                                  |
+|--------|--------------------------------------|----------------------------------------------|
+| `GET`  | `/vehicles`                          | Get a list of all vehicles in the fleet.     |
+| `GET`  | `/vehicles/{vehicle_id}`             | Get detailed information for a specific vehicle.|
+| `GET`  | `/vehicles/{vehicle_id}/location`    | Get the last known location of a vehicle.      |
+| `GET`  | `/vehicles/{vehicle_id}/trips`       | Get a list of trips for a vehicle.           |
+| `POST` | `/reports`                           | Create a new report (e.g., fuel summary).    |
+| `GET`  | `/reports/{report_id}`               | Get the status or result of a generated report.|
+| `GET`  | `/drivers/{driver_id}/score`         | Get the current behavior score for a driver. |
+
+**Example Request:**
+```bash
+curl -X GET "https://api.fintom8.com/api/v1/vehicles/123/location" \
+-H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+**Example Response:**
+```json
+{
+  "vehicleId": 123,
+  "timestamp": "2023-10-27T10:00:00Z",
+  "latitude": 34.0522,
+  "longitude": -118.2437,
+  "speed": 45.5,
+  "heading": 180,
+  "status": "MOVING"
+}
+```
+
+### 5.2 External Service Integrations
+
+*   **Mapping Services:** Google Maps API or Mapbox for displaying maps, geocoding addresses, and calculating routes.
+*   **Weather Services:** A weather API (e.g., OpenWeatherMap) to correlate weather conditions with driving events or delays.
+*   **SMS/Email Gateway:** Services like Twilio or SendGrid for sending alerts and notifications to users.
+
+### 5.3 Data Exchange Formats
+
+*   **API:** All data is exchanged in **JSON** format.
+*   **Reports:** Reports can be generated in **CSV** and **PDF** formats.
+
+---
+
+## 6. Database Design
+
+### 6.1 Database Schema
+
+The database uses a relational model to store data. The core tables are `users`, `vehicles`, `drivers`, `gps_pings`, `maintenance_schedules`, and `fuel_logs`.
+
+### 6.2 Data Models (Simplified)
+
+```sql
+-- Users who can log in to the system
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL, -- 'admin', 'manager', 'coordinator'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Physical vehicles in the fleet
+CREATE TABLE vehicles (
+    id SERIAL PRIMARY KEY,
+    license_plate VARCHAR(20) UNIQUE NOT NULL,
+    make VARCHAR(50),
+    model VARCHAR(50),
+    year INT,
+    vin VARCHAR(17) UNIQUE,
+    current_odometer INT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Drivers who operate the vehicles
+CREATE TABLE drivers (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL, -- Link to a user account for mobile app access
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    assigned_vehicle_id INT REFERENCES vehicles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Raw GPS data points from devices
+CREATE TABLE gps_pings (
+    id BIGSERIAL PRIMARY KEY,
+    vehicle_id INT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    latitude DECIMAL(9, 6) NOT NULL,
+    longitude DECIMAL(9, 6) NOT NULL,
+    speed DECIMAL(5, 2),
+    heading INT
+);
+
+-- Maintenance schedules for vehicles
+CREATE TABLE maintenance_schedules (
+    id SERIAL PRIMARY KEY,
+    vehicle_id INT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    task_description VARCHAR(255) NOT NULL,
+    due_date DATE,
+    due_mileage INT,
+    status VARCHAR(50) DEFAULT 'PENDING', -- 'PENDING', 'COMPLETED'
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+### 6.3 Relationships
+
+*   **`users` to `drivers`:** A `user` can be a `driver` (One-to-One, optional).
+*   **`vehicles` to `drivers`:** A `vehicle` can be assigned to one `driver` at a time (One-to-One, optional).
+*   **`vehicles` to `gps_pings`:** A `vehicle` has many `gps_pings` (One-to-Many).
+*   **`vehicles` to `maintenance_schedules`:** A `vehicle` has many `maintenance_schedules` (One-to-Many).
+
+### 6.4 Indexes and Constraints
+
+*   **Primary Keys:** Defined on `id` columns for all tables.
+*   **Foreign Keys:** Enforce referential integrity between tables.
+*   **Indexes:**
+    *   Create an index on `gps_pings(vehicle_id, timestamp DESC)` for fast retrieval of recent location data.
+    *   Create an index on `users(email)` for fast login lookups.
+    *   Create an index on `vehicles(license_plate)` for quick vehicle searches.
+
+---
+
+## 7. Security
+
+### 7.1 Authentication Mechanisms
+
+*   **JWT (JSON Web Tokens):** User authentication is handled via JWT. After a successful login with email and password, the API returns a short-lived access token and a long-lived refresh token.
+*   **Password Hashing:** User passwords are not stored in plaintext. They are hashed using a strong, salted hashing algorithm like **bcrypt**.
+
+### 7.2 Authorization Rules
+
+*   **Role-Based Access Control (RBAC):** Access to API endpoints and data is restricted based on user roles (`admin`, `manager`, `driver`).
+    *   **Admin:** Full access to all system data and settings, including user management.
+    *   **Manager:** Access to all data within their assigned fleet or group. Can manage vehicles, drivers, and reports.
+    *   **Driver:** Can only access their own profile, assigned routes, and vehicle information via the mobile app.
+
+### 7.3 Data Protection
+
+*   **Encryption in Transit:** All communication between clients (web/mobile) and the API Gateway is encrypted using **TLS 1.2+ (HTTPS)**.
+*   **Encryption at Rest:** Sensitive data in the PostgreSQL database is encrypted at the storage level using cloud provider KMS or native database encryption features.
+*   **Secrets Management:** Application secrets (API keys, database credentials) are managed using a secrets manager like HashiCorp Vault or the cloud provider's equivalent (e.g., AWS Secrets Manager) and are injected as environment variables at runtime.
+
+### 7.4 Security Best Practices
+
+*   **Input Validation:** All incoming data from clients is validated to prevent injection attacks (SQLi, XSS). Pydantic models in FastAPI are used for strict data validation.
+*   **CORS Policy:** A strict Cross-Origin Resource Sharing (CORS) policy is configured on the API Gateway to only allow requests from the authorized web frontend domain.
+*   **Rate Limiting:** The API Gateway enforces rate limiting to protect against brute-force attacks and DoS.
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1 Deployment Process
+
+The system is deployed using a container-based approach on a Kubernetes cluster. Each microservice runs in its own set of pods.
+
+### 8.2 Infrastructure Requirements
+
+*   **Cloud Provider:** AWS, Google Cloud, or Azure.
+*   **Kubernetes Cluster:** A managed K8s service (EKS, GKE, AKS) is recommended.
+*   **Managed Database:** A managed PostgreSQL service (e.g., AWS RDS, Google Cloud SQL).
+*   **Managed Cache:** A managed Redis service (e.g., AWS ElastiCache).
+*   **Container Registry:** Docker Hub, ECR, or GCR to store Docker images.
+*   **Object Storage:** S3 or equivalent for storing generated reports and other assets.
+
+### 8.3 CI/CD Pipeline
+
+A CI/CD pipeline is implemented using GitHub Actions.
+
+1.  **Commit & Push:** A developer pushes code to a feature branch in the Git repository.
+2.  **Pull Request:** A pull request is created to merge into the `main` branch.
+3.  **CI (Continuous Integration):**
+    *   The pipeline is triggered automatically.
+    *   It runs linters and static analysis.
+    *   It executes unit and integration tests.
+    *   If all checks pass, the code can be merged.
+4.  **CD (Continuous Deployment):**
+    *   On a merge to `main`, a new build is triggered.
+    *   A new Docker image is built and tagged with the commit hash.
+    *   The image is pushed to the container registry.
+    *   The pipeline updates the Kubernetes deployment manifest to use the new image tag, triggering a rolling update of the service.
+
+### 8.4 Environment Configuration
+
+#### Docker Compose for Local Development (`docker-compose.yml`)
+
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/fintom8
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=fintom8
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  postgres_data:
+```
+
+---
+
+## 9. Testing
+
+### 9.1 Testing Strategy
+
+A comprehensive, multi-layered testing strategy is employed to ensure code quality, reliability, and correctness. The strategy follows the "testing pyramid" model, with a large base of unit tests, a smaller number of integration tests, and a select few end-to-end tests.
+
+### 9.2 Test Types
+
+*   **Unit Tests:**
+    *   **Backend (Pytest):** Each function and class is tested in isolation to verify its business logic. Database and external services are mocked.
+    *   **Frontend (Jest & React Testing Library):** Individual React components are tested to ensure they render correctly and handle user interactions as expected.
+*   **Integration Tests:**
+    *   These tests verify the interaction between different microservices or between a service and its database. They are run in a containerized environment that mimics production. For example, testing that the `GPS Tracking Service` correctly writes data that the `Analytics Service` can read.
+*   **End-to-End (E2E) Tests:**
+    *   These tests simulate real user workflows from start to finish. They are run against a fully deployed staging environment. For example, a test script would log in as a manager, navigate to the map, and verify that a vehicle's location is updated.
+
+### 9.3 Testing Tools
+
+*   **Backend:** `pytest`, `pytest-mock`
+*   **Frontend:** `Jest`, `React Testing Library`
+*   **E2E:** `Cypress` or `Selenium`
+*   **Code Coverage:** `coverage.py` (backend), `Jest --coverage` (frontend)
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1 Monitoring Approach
+
+A proactive monitoring strategy is in place to track system health and performance.
+
+*   **Metrics Collection:** **Prometheus** is used to scrape metrics from all backend services and infrastructure components (e.g., CPU usage, memory, API latency, error rates).
+*   **Dashboards:** **Grafana** is used to create dashboards for visualizing metrics collected by Prometheus. This provides a real-time overview of system health.
+*   **Alerting:** **Alertmanager** (part of the Prometheus ecosystem) is configured to send alerts to designated channels (e.g., Slack, PagerDuty) when predefined thresholds are breached (e.g., API error rate > 5%).
+
+### 10.2 Logging Strategy
+
+*   **Structured Logging:** All services generate logs in a structured **JSON** format. This allows for easy parsing, searching, and filtering. Each log entry includes context like the service name, request ID, and timestamp.
+*   **Centralized Logging:** Logs from all containers in the Kubernetes cluster are collected and forwarded to a centralized logging platform like the **EFK stack (Elasticsearch, Fluentd, Kibana)**.
+    *   **Elasticsearch:** Stores and indexes the logs.
+    *   **Fluentd:** A log collector that runs on each Kubernetes node.
+    *   **Kibana:** A web interface for searching and visualizing logs.
+
+### 10.3 Error Handling
+
+*   **Error Tracking:** An error tracking service like **Sentry** is integrated into both the backend and frontend. It captures unhandled exceptions, aggregates them, and provides detailed stack traces and context, allowing developers to quickly diagnose and fix bugs.
+*   **Consistent Error Responses:** The API returns standardized error responses with appropriate HTTP status codes and a clear error message in the JSON body.
+
+---
+
+## 11. Developer Guide
+
+### 11.1 Getting Started
+
+This guide provides instructions for setting up the local development environment for the fintom8 project.
+
+**Prerequisites:**
+*   Git
+*   Docker and Docker Compose
+*   Node.js and npm (for frontend development)
+
+### 11.2 Development Setup
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/your-org/fintom8.git
+    cd fintom8
+    ```
+
+2.  **Configure Environment Variables:**
+    *   Copy the example environment files for the backend and frontend.
+    *   `cp backend/.env.example backend/.env`
+    *   `cp frontend/.env.example frontend/.env.local`
+    *   Review and adjust the variables in the `.env` files as needed.
+
+3.  **Build and Run Services:**
+    *   Use Docker Compose to build the images and start all the services.
+    ```bash
+    docker-compose up --build -d
+    ```
+    *   The services will be available at:
+        *   **Backend API:** `http://localhost:8000/docs`
+        *   **Frontend App:** `http://localhost:3000`
+        *   **PostgreSQL DB:** `localhost:5432`
+        *   **Redis:** `localhost:6379`
+
+4.  **Run Database Migrations:**
+    *   Execute the database migration scripts to set up the schema.
+    ```bash
+    docker-compose exec backend alembic upgrade head
+    ```
+
+### 11.3 Contribution Guidelines
+
+*   **Branching Strategy:** Follow the **GitFlow** model.
+    *   `main`: Contains production-ready code.
+    *   `develop`: The main development branch.
+    *   `feature/your-feature-name`: Create feature branches off `develop`.
+*   **Pull Requests (PRs):**
+    *   All code changes must be submitted via a PR against the `develop` branch.
+    *   A PR must include a clear description of the changes.
+    *   All CI checks (tests, linting) must pass.
+    *   At least one other developer must review and approve the PR before it can be merged.
+*   **Code Style:**
+    *   **Python:** Follow **PEP 8**. Use `black` for auto-formatting and `flake8` for linting.
+    *   **JavaScript/TypeScript:** Use `Prettier` for auto-formatting and `ESLint` for linting.

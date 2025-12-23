@@ -1,0 +1,463 @@
+Here is the complete technical documentation for the Delivery-Car system, based on the provided requirements.
+
+***
+
+# Technical Documentation: Delivery-Car
+
+**Project Codename:** fintom8
+**Version:** 1.0
+**Date:** 2023-10-27
+
+---
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the Delivery-Car system. It details the system architecture, technology stack, features, security measures, and deployment strategy, serving as a central reference for developers, administrators, and stakeholders.
+
+### 1.1. System Purpose and Main Goals
+
+**Delivery-Car** is a web-based platform designed to streamline the process of purchasing vehicles from major US auto auctions, specifically **Copart** and the **Insurance Auto Auctions (IAA, formerly AIIA)**.
+
+The primary goal of the system is to simplify the complex auction buying process, making it accessible and transparent for users with varying levels of experience. It solves the problem of information fragmentation and procedural complexity by aggregating listings, providing comparison tools, and managing the entire bidding and ordering workflow within a single, user-friendly interface.
+
+### 1.2. Target Audience
+
+The system is designed for a diverse user base with distinct roles and needs:
+
+*   **Private Buyers:** Individuals seeking to purchase a single vehicle for personal use. They require a simple interface for searching, viewing, and ordering cars.
+*   **Car Dealers & Brokers:** Professional users who handle large volumes of vehicle purchases. They require advanced functionality, efficient workflows, and detailed reporting.
+*   **System Administrators:** Internal staff responsible for managing the platform, overseeing orders, verifying statuses, monitoring system health, and managing integrations.
+
+### 1.3. Key Features Summary
+
+The core functionality of the Delivery-Car platform includes:
+
+*   **User Account Management:** A personal dashboard for users to manage their profile, track activity, and view history.
+*   **Aggregated Auction Search:** A powerful search engine to find vehicles across both Copart and IAA auctions with advanced filtering.
+*   **Detailed Vehicle Pages:** Comprehensive information for each vehicle, including specifications, photos, history reports, and bidding details.
+*   **Favorites/Wishlist:** The ability for users to save and track vehicles of interest.
+*   **Order Placement and Management:** A streamlined workflow for placing bids and finalizing purchase orders.
+*   **Real-time Status Tracking:** Users can track the status of their orders from bidding to delivery.
+*   **Purchase History:** An archive of all past and current orders for user reference.
+*   **Internal Chat:** A direct communication channel between users and support managers.
+*   **Automated Notifications:** Email or in-app alerts for critical events, such as status changes, bid results, and messages.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+The Delivery-Car system is designed using a **service-oriented architecture (SOA)** or a **modular monolith** approach. The backend is a central API service that handles all business logic, data processing, and communication with external services. The frontend is a decoupled Single-Page Application (SPA) that interacts with the backend via a RESTful API.
+
+This architecture promotes separation of concerns, scalability, and maintainability.
+
+### 2.2. Main Components and Modules
+
+1.  **Frontend (Web Client):** A React/Next.js application that provides the user interface. It is responsible for all client-side rendering, state management, and user interaction.
+2.  **Backend (API Server):** A Python/FastAPI application that serves as the core of the system. Its modules include:
+    *   **Authentication Service:** Manages user registration, login, and session management using JWT.
+    *   **User Management Module:** Handles user profiles, roles, and permissions.
+    *   **Car/Auction Module:** Integrates with Copart and IAA APIs to fetch, process, and serve vehicle data.
+    *   **Order Management Module:** Controls the entire lifecycle of an order, from placement to completion.
+    *   **Notification Service:** Manages the sending of automated emails and in-app notifications.
+    *   **Chat Module:** Powers the real-time internal messaging system (potentially using WebSockets).
+3.  **Database:** A PostgreSQL relational database that serves as the single source of truth for all application data, including user information, orders, and vehicle metadata.
+4.  **External Services:** Third-party APIs that provide core data:
+    *   **Copart API:** For fetching vehicle listings, details, and bidding information.
+    *   **IAA API:** For fetching vehicle listings and details from the IAA auction.
+
+### 2.3. System Diagrams (Text Format)
+
+#### Component Diagram
+
+```
+[User on Browser] <--> [Frontend (React/Next.js on VPS/CDN)]
+       |
+       | (HTTPS/REST API Calls)
+       V
+[Backend API (Python/FastAPI in Docker on VPS/Kubernetes)]
+       |
+       |---------------------------------------------|
+       | (SQL)                                       | (HTTP/API Calls)
+       V                                             V
+[PostgreSQL Database]                  [Copart API / IAA API]
+```
+
+### 2.4. Data Flow
+
+A typical user workflow for purchasing a car demonstrates the data flow:
+
+1.  **Search:** A user enters search criteria on the Frontend. The Frontend sends a GET request to the Backend API (e.g., `/api/v1/cars/search`).
+2.  **Data Aggregation:** The Backend's Car/Auction Module makes parallel API calls to the Copart and IAA APIs to fetch relevant vehicle listings.
+3.  **Response:** The Backend processes, normalizes, and combines the data from both sources and returns a unified list of vehicles to the Frontend in JSON format.
+4.  **Order Placement:** The user selects a car and clicks "Order". The Frontend sends a POST request with user and vehicle details to the Backend API (e.g., `/api/v1/orders`).
+5.  **Data Persistence:** The Backend validates the data, creates a new order record in the PostgreSQL database with an initial status (e.g., 'PENDING'), and associates it with the user.
+6.  **Status Update:** An Administrator updates the order status in their admin panel. The change is saved to the database.
+7.  **Notification:** A database trigger or an event listener in the Backend detects the status change and instructs the Notification Service to send an email to the user. The user can also see the updated status in their personal account.
+
+---
+
+## 3. Technology Stack
+
+| Category                  | Technology / Tool                    | Description                                                   |
+| ------------------------- | ------------------------------------ | ------------------------------------------------------------- |
+| **Programming Languages** | Python 3.10+                         | Primary language for the backend API.                         |
+|                           | JavaScript / TypeScript              | Primary language for the frontend application.                |
+| **Backend Framework**     | FastAPI                              | A modern, high-performance web framework for building APIs.   |
+| **Frontend Framework**    | React.js or Next.js                  | A popular library/framework for building user interfaces.     |
+| **Database**              | PostgreSQL 14+                       | A powerful, open-source object-relational database system.    |
+| **Authentication**        | JWT (JSON Web Tokens)                | Used for securing API endpoints and managing user sessions.   |
+| **Containerization**      | Docker                               | For packaging the application and its dependencies.           |
+| **Orchestration**         | Docker Compose / Kubernetes (K8s)    | For managing multi-container Docker applications.             |
+| **Web Server / Gateway**  | Uvicorn, Gunicorn, Nginx             | For serving the FastAPI application and reverse proxying.     |
+| **Development Tools**     | Git, VS Code, Postman                | Standard tools for version control, coding, and API testing.  |
+| **Deployment Tools**      | GitHub Actions / GitLab CI           | For continuous integration and continuous deployment (CI/CD). |
+| **Logging/Monitoring**    | ELK Stack / Prometheus & Grafana     | For collecting logs and monitoring system performance.        |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. Personal Account (Dashboard)
+Users can register and log in to a personal account. The dashboard provides a central hub to view purchase history, track active orders, manage favorite vehicles, and update profile information.
+
+#### 4.1.2. Auction Car Search
+A search interface allows users to query vehicle listings from both Copart and IAA simultaneously. Filters include:
+*   Make, Model, Year
+*   Auction Location
+*   Damage Type
+*   Document Type
+*   VIN
+
+#### 4.1.3. Detailed Car Pages
+Each vehicle listing has a dedicated page displaying:
+*   High-resolution images and/or videos.
+*   Vehicle specifications (engine, transmission, mileage).
+*   Auction details (lot number, sale date, current bid).
+*   Condition reports and damage descriptions.
+*   Estimated repair costs (if available).
+
+#### 4.1.4. Favorites (Wishlist)
+Users can "star" or "favorite" cars from the search results. These cars are saved in a dedicated list within their personal account for easy tracking.
+
+#### 4.1.5. Order Placement
+A multi-step form guides the user through placing an order. This includes confirming the vehicle, setting a maximum bid price, and providing necessary personal information.
+
+#### 4.1.6. Order Status Tracking
+Once an order is placed, its status is tracked through various stages: `Pending`, `Bid Placed`, `Won`, `Lost`, `Payment Due`, `In Transit`, `Delivered`. The current status is always visible in the user's dashboard.
+
+#### 4.1.7. Purchase History
+An archive of all past orders, including both won and lost bids. Users can review details of previous transactions.
+
+#### 4.1.8. Internal Chat with Manager
+A real-time chat interface (e.g., using WebSockets) that allows users to communicate directly with an assigned account manager for support, questions, or updates regarding their orders.
+
+#### 4.1.9. Automatic Notifications
+The system automatically sends notifications (via email and/or in-app) for key events:
+*   Successful order placement.
+*   Change in order status.
+*   New message from a manager.
+*   Auction results (win/loss).
+
+### 4.2. Use Case: Private Buyer Purchases a Car
+
+1.  **Actor:** Private Buyer
+2.  **Goal:** To find and place an order for a specific car.
+3.  **Workflow:**
+    *   User registers and logs into the Delivery-Car platform.
+    *   User navigates to the "Search" page and filters for "Toyota Camry, 2019+, minor front-end damage".
+    *   User browses the aggregated results from Copart and IAA.
+    *   User clicks on a promising listing to view its detailed page. They review photos and auction details.
+    *   User adds the car to their "Favorites" to monitor it.
+    *   After consideration, the user navigates to the car's page and clicks "Place Order".
+    *   User fills out the order form, specifying their maximum bid.
+    *   The system confirms the order and sets its status to "Pending". The user receives an email confirmation.
+    *   The user tracks the order status in their personal account.
+
+---
+
+## 5. API and Integrations
+
+### 5.1. Internal API Endpoints (Examples)
+
+The backend will expose a RESTful API. All endpoints will be versioned (e.g., `/api/v1/...`).
+
+| Method | Endpoint                    | Description                                    | Access Control    |
+| ------ | --------------------------- | ---------------------------------------------- | ----------------- |
+| `POST` | `/api/v1/auth/register`     | Register a new user.                           | Public            |
+| `POST` | `/api/v1/auth/token`        | Obtain a JWT access token (login).             | Public            |
+| `GET`  | `/api/v1/users/me`          | Get the current authenticated user's profile.  | Authenticated     |
+| `GET`  | `/api/v1/cars`              | Search for cars with query parameters.         | Authenticated     |
+| `GET`  | `/api/v1/cars/{car_id}`     | Get details for a specific car.                | Authenticated     |
+| `GET`  | `/api/v1/orders`            | Get a list of the user's orders.               | Authenticated     |
+| `POST` | `/api/v1/orders`            | Place a new order for a car.                   | Authenticated     |
+| `GET`  | `/api/v1/admin/orders`      | Get all orders (for administrators).           | Admin only        |
+| `PUT`  | `/api/v1/admin/orders/{id}` | Update the status of an order.                 | Admin only        |
+
+### 5.2. External Service Integrations
+
+*   **Copart API:**
+    *   **Purpose:** To fetch live auction data, vehicle details, and images.
+    *   **Authentication:** Requires an API key and secret provided by Copart.
+    *   **Endpoints:** Will utilize endpoints for searching lots, retrieving lot details, etc.
+    *   **Data Format:** JSON.
+
+*   **IAA (Insurance Auto Auctions) API:**
+    *   **Purpose:** To fetch live auction data and vehicle details.
+    *   **Authentication:** Typically OAuth 2.0 or API key-based.
+    *   **Endpoints:** Will utilize endpoints for vehicle search and detail retrieval.
+    *   **Data Format:** JSON.
+
+**Integration Strategy:** A dedicated service/module within the backend will be responsible for communicating with these external APIs. It will handle authentication, request/response cycles, and data normalization to ensure a consistent data structure within the Delivery-Car system. Rate limiting and caching strategies will be implemented to optimize performance and respect API usage limits.
+
+---
+
+## 6. Database Design
+
+### 6.1. Database Schema (Simplified)
+
+The database will be PostgreSQL. The following is a simplified schema.
+
+```sql
+-- Users and Roles
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL -- 'private_buyer', 'dealer', 'admin'
+);
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100),
+    role_id INT REFERENCES roles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Cars from Auctions
+CREATE TABLE cars (
+    id BIGINT PRIMARY KEY, -- Using the auction's lot number as a primary key
+    source VARCHAR(20) NOT NULL, -- 'copart', 'iaa'
+    make VARCHAR(100),
+    model VARCHAR(100),
+    year INT,
+    vin VARCHAR(17) UNIQUE,
+    details JSONB, -- Store all other relevant info like damage, mileage, etc.
+    last_fetched_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Orders
+CREATE TYPE order_status AS ENUM ('pending', 'bid_placed', 'won', 'lost', 'payment_due', 'in_transit', 'delivered', 'cancelled');
+
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    car_id BIGINT NOT NULL REFERENCES cars(id),
+    max_bid_amount NUMERIC(10, 2),
+    status order_status NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Favorites
+CREATE TABLE favorites (
+    user_id UUID NOT NULL REFERENCES users(id),
+    car_id BIGINT NOT NULL REFERENCES cars(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, car_id)
+);
+
+-- Chat Messages
+CREATE TABLE chat_messages (
+    id BIGSERIAL PRIMARY KEY,
+    order_id UUID REFERENCES orders(id),
+    sender_id UUID NOT NULL REFERENCES users(id),
+    receiver_id UUID NOT NULL REFERENCES users(id),
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### 6.2. Indexes and Constraints
+
+*   **Indexes:** Create indexes on `users(email)`, `orders(user_id)`, `orders(status)`, and foreign key columns for faster lookups. A GIN index on `cars(details)` can be used for efficient searching within the JSONB data.
+*   **Constraints:** Use `NOT NULL` constraints on critical fields. Foreign key constraints will enforce relational integrity.
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+*   **JWT (JSON Web Tokens):** User authentication is managed via JWT.
+    1.  A user submits their credentials (email/password) to the `/api/v1/auth/token` endpoint.
+    2.  The server verifies the credentials and, if valid, generates a signed JWT access token and a refresh token.
+    3.  The access token is short-lived (e.g., 15-60 minutes) and must be sent in the `Authorization: Bearer <token>` header of every subsequent request to protected endpoints.
+    4.  The refresh token is long-lived (e.g., 7 days) and is used to obtain a new access token without requiring the user to log in again.
+
+### 7.2. Authorization Rules
+
+*   **Role-Based Access Control (RBAC):** Authorization is implemented based on user roles defined in the `roles` table.
+    *   **Private Buyer / Dealer:** Can access their own profile, orders, and favorites. They can search for cars and place orders.
+    *   **Administrator:** Has full access to the system, including the ability to view all user orders, update order statuses, and access system management dashboards.
+*   API endpoints will be protected by middleware that decodes the JWT, verifies its signature, and checks the user's role against the required permissions for that endpoint.
+
+### 7.3. Data Protection
+
+*   **HTTPS/TLS:** All communication between the client and the server must be encrypted using TLS (HTTPS).
+*   **Password Hashing:** User passwords will be hashed using a strong, modern algorithm like **bcrypt** or **Argon2** before being stored in the database.
+*   **Data Validation:** All incoming data from users will be strictly validated (e.g., using Pydantic in FastAPI) to prevent injection attacks (SQLi, XSS).
+*   **Environment Variables:** Sensitive information such as database credentials, API keys, and JWT secrets will be stored in environment variables, not in the source code.
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+The application will be containerized using Docker for consistency across development, staging, and production environments.
+
+1.  The Frontend and Backend applications will each have their own `Dockerfile`.
+2.  `docker-compose.yml` will be used to orchestrate the services (backend, frontend, database, reverse proxy) in development and for simple VPS deployments.
+3.  For production at scale, a Kubernetes cluster is recommended for better scalability, resilience, and management.
+
+#### Example `docker-compose.yml` for Development
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14
+    container_name: delivery_car_db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=delivery_car
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: delivery_car_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/delivery_car
+      - JWT_SECRET_KEY=your_super_secret_key
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: delivery_car_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+
+volumes:
+  postgres_data:
+```
+
+### 8.2. CI/CD Pipeline
+
+A CI/CD pipeline (e.g., using GitHub Actions) will automate the testing and deployment process.
+
+1.  **On Push/Pull Request to `main` branch:**
+    *   Run linters and static analysis.
+    *   Run unit and integration tests.
+    *   Build Docker images.
+2.  **On Merge to `main` branch:**
+    *   Push the newly built Docker images to a container registry (e.g., Docker Hub, AWS ECR).
+    *   Trigger a deployment script on the production server (VPS/Kubernetes) to pull the new images and restart the containers (using a rolling update strategy to avoid downtime).
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+A multi-layered testing strategy will be employed to ensure code quality and system reliability.
+
+### 9.2. Test Types
+
+*   **Unit Tests:**
+    *   **Backend:** Use `pytest` to test individual functions, classes, and business logic in isolation.
+    *   **Frontend:** Use `Jest` and `React Testing Library` to test individual components.
+*   **Integration Tests:**
+    *   Test the interaction between different components, such as API service calls to the database. `pytest` with a test database will be used.
+*   **End-to-End (E2E) Tests:**
+    *   Simulate real user workflows in a browser. Tools like `Cypress` or `Playwright` will be used to test critical paths like user registration, search, and the order placement process.
+*   **API Tests:**
+    *   Use tools like `Postman` or `pytest` to test the API endpoints directly, verifying status codes, response bodies, and headers.
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+*   **Infrastructure Monitoring:** Use tools like **Prometheus** to collect metrics on CPU, memory, and disk usage of the servers/containers.
+*   **Application Performance Monitoring (APM):** Integrate an APM tool to monitor API response times, database query performance, and error rates.
+*   **Dashboards:** Use **Grafana** to create dashboards for visualizing metrics from Prometheus and other sources, providing a real-time overview of system health.
+
+### 10.2. Logging Strategy
+
+*   **Structured Logging:** The backend application will generate structured logs (e.g., in JSON format) containing important context like timestamps, log levels, request IDs, and user IDs.
+*   **Centralized Logging:** Logs from all services (backend, frontend, database) will be aggregated into a centralized logging system like the **ELK Stack (Elasticsearch, Logstash, Kibana)** or a cloud service (e.g., Datadog, Logtail). This allows for easy searching, filtering, and analysis of logs.
+*   **Error Handling:** Unhandled exceptions will be caught at a global level, logged with a full stack trace, and an alert will be sent to the development team via a service like Sentry or a dedicated Slack channel.
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+This guide assumes you have `git`, `Docker`, and `docker-compose` installed on your local machine.
+
+### 11.2. Development Setup
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone <repository_url>
+    cd delivery-car-project
+    ```
+
+2.  **Configure Environment Variables:**
+    *   In the `backend/` directory, create a `.env` file from the `.env.example` template and fill in the required variables (database URL, JWT secret, etc.).
+    *   Do the same for the `frontend/` directory if needed.
+
+3.  **Build and Run the Application:**
+    *   From the project root directory, run the following command:
+    ```bash
+    docker-compose up --build
+    ```
+    *   This will build the Docker images for all services and start them.
+    *   The backend API will be available at `http://localhost:8000`.
+    *   The frontend application will be available at `http://localhost:3000`.
+
+### 11.3. Contribution Guidelines
+
+*   Create a new branch for each feature or bug fix (`feature/my-new-feature` or `fix/issue-123`).
+*   Write clean, commented, and well-tested code.
+*   Ensure all existing tests pass before submitting a pull request.
+*   Update documentation if you are introducing new features or changing existing ones.
+*   Submit a pull request to the `main` branch for review. A code review from at least one other developer is required for merging.

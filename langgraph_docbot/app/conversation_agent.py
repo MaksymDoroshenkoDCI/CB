@@ -156,12 +156,16 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     
     # Check if all questions are collected
     if current_q_idx >= len(questions_data):
-        # Show closing message before completing
-        closing_msg = get_closing_message()
-        state["conversation_complete"] = False  # Wait for user confirmation
-        state["current_question_text"] = closing_msg
-        state["system_context"] = closing_msg
-        state["waiting_for_confirmation"] = True
+        # All questions answered - automatically complete conversation
+        # No need for closing message, UI will show "Generate Documentation" button
+        state["conversation_complete"] = True
+        if state["answers"]:
+            summary = _format_requirements_summary(state["answers"])
+            state["collected_requirements"] = summary
+        else:
+            state["collected_requirements"] = user_input if user_input else ""
+        state["system_context"] = "ALL_ANSWERS_COLLECTED"
+        state["waiting_for_confirmation"] = False
         return state
     
     # Get next question from JSON
@@ -179,11 +183,15 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         question_message_parts.append("")  # Empty line
         state["show_opening"] = False
     
-    # Add acknowledgment from previous answer
-    if user_input and current_q_idx > 0 and not state.get("waiting_for_confirmation", False):
-        acknowledgment = state.get("last_acknowledgment", get_acknowledgment())
+    # Add acknowledgment from previous answer (only if we just processed an answer)
+    # Check if we have a saved acknowledgment from the previous step
+    if current_q_idx > 0 and state.get("last_acknowledgment") and not state.get("waiting_for_confirmation", False):
+        acknowledgment = state.get("last_acknowledgment")
         question_message_parts.append(acknowledgment)
         question_message_parts.append("")  # Empty line
+        
+        # Clear acknowledgment after using it (to avoid showing it again)
+        state["last_acknowledgment"] = None
         
         # Add section transition if available
         prev_category = questions_data[current_q_idx - 1].get("category", "") if current_q_idx > 0 else ""

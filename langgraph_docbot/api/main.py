@@ -219,8 +219,10 @@ def continue_conversation(req: ConversationContinueRequest):
         session_state["user_input"] = req.answer
         
         # Continue workflow - should be fast (just updates state, no LLM calls)
-        # Increased limit to handle closing message confirmation flow
-        config = {"recursion_limit": 5}  # Need more steps for closing message + confirmation
+        # Need enough steps for question transitions with acknowledgments and transitions
+        waiting_for_confirmation = session_state.get("waiting_for_confirmation", False)
+        recursion_limit = 5 if waiting_for_confirmation else 4  # 4 steps for normal transitions, 5 for closing message
+        config = {"recursion_limit": recursion_limit}
         result = workflow.invoke(session_state, config=config)
         
         # Save updated state

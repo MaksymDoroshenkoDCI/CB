@@ -1,0 +1,461 @@
+Of course. As an experienced technical documentation writer, I will now create the comprehensive documentation for the "fintom8" project based on the gathered requirements.
+
+---
+
+# **Technical Documentation: fintom8**
+
+**Version:** 1.0
+**Date:** October 26, 2023
+**Author:** Technical Documentation Team
+
+---
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the **fintom8** system. It details the system's architecture, technology stack, features, security mechanisms, and deployment procedures. This documentation is intended for software developers, system architects, DevOps engineers, and technical project managers involved in the development, deployment, and maintenance of the system.
+
+### 1.1. System Purpose and Main Goals
+
+**fintom8** is a sophisticated automated platform designed to streamline and optimize participation in online asset auctions. The primary purpose is to provide professional investors and companies with a competitive edge by automating the processes of auction discovery, analysis, and bidding.
+
+The main goals of the system are:
+*   **Automation:** To automate the entire lifecycle of auction participation, from monitoring new lots to placing bids according to predefined rules.
+*   **Efficiency:** To save users' time and effort by consolidating information from multiple auction platforms into a single, user-friendly interface.
+*   **Strategic Bidding:** To enable users to deploy complex, data-driven bidding strategies that maximize their chances of winning at optimal prices.
+*   **Financial Management:** To provide a secure and integrated system for managing funds, including deposits, fund allocation for bids, and refunds.
+
+### 1.2. Target Audience
+
+The primary target audience for fintom8 includes:
+*   **Professional Investors:** Individuals or groups who regularly participate in asset auctions as a core part of their investment activities.
+*   **Investment Funds:** Firms that manage portfolios of assets acquired through auctions.
+*   **Real Estate Companies:** Agencies and developers looking to acquire properties through auction platforms like Prozorro.Sale and CETAM.
+
+### 1.3. Key Features Summary
+
+*   **Multi-Platform Integration:** Seamlessly integrates with major auction platforms (e.g., Prozorro.Sale, CETAM) to aggregate auction data.
+*   **Advanced Lot Monitoring:** Allows users to set up custom filters (by region, asset type, price range, etc.) to get notified about new, relevant lots.
+*   **Automated Bidding Engine:** A powerful engine that automatically places bids based on user-defined, flexible strategies (e.g., "bid 5% above the current highest bid, up to a maximum cap").
+*   **Centralized Dashboard:** A comprehensive user dashboard displaying all active auctions, bidding history, financial status, and performance analytics.
+*   **Real-time Notifications:** A multi-channel notification system (Email, Telegram) to keep users informed about auction status, outbids, and results.
+*   **Secure Wallet Management:** An integrated financial system for managing an account balance, blocking funds for auctions, and processing refunds.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+The fintom8 system is designed using a **Microservices Architecture**. This approach was chosen for its scalability, resilience, and maintainability. Each core business capability is encapsulated within a separate, independently deployable service. The services communicate with each other asynchronously via a message broker (RabbitMQ) to ensure loose coupling and high availability.
+
+### 2.2. Main Components and Modules
+
+The system is composed of the following core microservices:
+
+*   **User Service:** Manages user registration, authentication, authorization, and profile data. It is the single source of truth for user information.
+*   **Auction Scanner:** Periodically polls and scrapes integrated auction platforms (e.g., Prozorro.Sale API) for new or updated lots. When relevant lots matching user criteria are found, it publishes events to the message broker.
+*   **Bidding Engine:** The core logic component. It subscribes to auction update events, evaluates user-defined strategies against the current auction state, and places bids via the respective platform's API when conditions are met.
+*   **Notification Service:** Subscribes to various system events (e.g., new lot found, bid placed, auction won/lost) and dispatches notifications to users via configured channels (Email, Telegram).
+*   **Payment Gateway Service:** Integrates with third-party payment providers (e.g., Stripe) to handle user account deposits, manage fund reservations for bids, and process withdrawals/refunds.
+*   **API Gateway:** A single entry point for all client requests (Frontend). It routes requests to the appropriate microservice and handles cross-cutting concerns like authentication, rate limiting, and logging.
+
+### 2.3. System Diagrams (Text Format)
+
+#### Component Diagram
+
+```
+[Frontend (React App)] <--> [API Gateway]
+       |
+       |-----------------------------------------------------------|
+       |                   (Internal Network / VPC)                |
+       |-----------------------------------------------------------|
+       |         |         |         |         |                   |
+[User Service] [Auction Scanner] [Bidding Engine] [Notification Service] [Payment Service]
+   | (PostgreSQL)  | (API calls)     | (RabbitMQ)    | (SMTP/Telegram API)  | (Stripe API)
+   |                 |                 |               |                      |
+[Database]       [Ext. Auctions]   [Message Broker]  [Ext. Services]        [Ext. Payment]
+```
+
+### 2.4. Data Flow
+
+**Use Case: Automated Bidding on a New Lot**
+
+1.  **Discovery:** The `Auction Scanner` service queries an external auction platform's API (e.g., Prozorro.Sale) every 5 minutes.
+2.  **Publication:** Upon finding a new lot that matches predefined user criteria (stored in the main PostgreSQL database), the `Auction Scanner` publishes a `lot.discovered` event to a RabbitMQ exchange. The event message contains the lot's details.
+3.  **Consumption:** The `Bidding Engine` and `Notification Service` are subscribed to this event.
+4.  **Notification:** The `Notification Service` consumes the event and sends a "New Lot Found" message to the relevant user via Telegram and/or email.
+5.  **Strategy Evaluation:** The `Bidding Engine` consumes the event. It retrieves the user's bidding strategy associated with the lot's criteria from the database.
+6.  **Fund Reservation:** If the strategy is active, the `Bidding Engine` makes a request to the `Payment Gateway Service` to check the user's balance and place a hold on the required funds (e.g., the guarantee fee).
+7.  **Bidding:** If funds are successfully reserved, the `Bidding Engine` makes an API call to the external auction platform to place the initial bid. It then publishes a `bid.placed` event.
+8.  **Feedback Loop:** The `Auction Scanner` continues to monitor the auction. If the user is outbid, it publishes an `auction.outbid` event. The `Bidding Engine` catches this, re-evaluates the strategy, and places a new bid if the rules and price cap allow. This loop continues until the auction ends.
+9.  **Conclusion:** When the auction ends, a final event (`auction.won` or `auction.lost`) is published. The `Payment Gateway Service` finalizes the transaction (debiting funds on win, releasing hold on loss), and the `Notification Service` informs the user of the outcome.
+
+---
+
+## 3. Technology Stack
+
+| Category                  | Technology / Tool                                       | Purpose                                            |
+| ------------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| **Programming Languages** | Python 3.11, TypeScript                               | Backend logic (Python), Frontend logic (TypeScript)|
+| **Backend Framework**     | FastAPI                                                 | High-performance asynchronous API development      |
+| **Frontend Framework**    | React, Redux Toolkit                                    | Building the user interface and managing state     |
+| **Databases**             | PostgreSQL 15, Redis                                    | Primary relational data store, Caching & Queuing   |
+| **Message Broker**        | RabbitMQ                                                | Asynchronous inter-service communication           |
+| **Development Tools**     | Docker, Docker Compose                                  | Containerization, local development environment    |
+| **Deployment Tools**      | Kubernetes, Helm, AWS (EKS)                             | Container orchestration and cloud deployment       |
+| **CI/CD**                 | GitLab CI/CD                                            | Continuous Integration and Continuous Deployment   |
+| **Monitoring**            | Prometheus, Grafana                                     | Metrics collection and visualization             |
+| **Logging**               | ELK Stack (Elasticsearch, Logstash, Kibana)             | Centralized log management and analysis            |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. User Management
+*   **Registration:** Users can sign up using an email/password combination or via OAuth2 (Google).
+*   **Authentication:** Secure authentication is handled via JSON Web Tokens (JWT).
+*   **Profile Management:** Users can manage their personal information, notification preferences, and API keys for external services.
+
+#### 4.1.2. Auction Monitoring
+*   **Search Filters:** Users can create and save persistent search profiles with fine-grained criteria: keywords, asset category, region, starting price, auction date, etc.
+*   **Real-time Updates:** The system provides real-time updates on the status of monitored lots directly on the user's dashboard.
+
+#### 4.1.3. Bidding Strategy Engine
+*   **Strategy Creation:** A rule-based UI allows users to create complex bidding strategies without writing code.
+*   **Strategy Parameters:**
+    *   `max_bid_amount`: The absolute maximum price the user is willing to pay.
+    *   `bid_increment_type`: Can be a fixed amount (`fixed`) or a percentage (`percent`).
+    *   `bid_increment_value`: The value for the increment (e.g., 1000 UAH or 5%).
+    *   `snipe_window`: A time window (in seconds) before the auction ends to place the final bid (sniping).
+*   **Strategy Association:** Strategies can be linked to specific search filters, applying them automatically to all new lots that match.
+
+### 4.2. Use Cases
+
+*   **UC-01: User Onboarding**
+    1.  A new user visits the platform.
+    2.  User registers via Google OAuth2.
+    3.  System creates a user account and an associated financial wallet.
+    4.  User is redirected to the dashboard and prompted to complete an onboarding tutorial.
+
+*   **UC-02: Setting Up an Automated Bid**
+    1.  User logs in and navigates to the "Monitoring" section.
+    2.  User creates a new filter for "2-bedroom apartments in Kyiv" with a price below 2,000,000 UAH.
+    3.  User navigates to the "Strategies" section and creates a new strategy named "Kyiv Apts Aggressive".
+    4.  The strategy is configured to bid 3% above the current bid, with a maximum cap of 1,950,000 UAH.
+    5.  User links the "Kyiv Apts Aggressive" strategy to the "2-bedroom apartments in Kyiv" filter.
+    6.  The system now automatically monitors and bids on any new lot matching these criteria.
+
+### 4.3. User Workflows
+
+**Financial Workflow:**
+1.  User deposits funds into their fintom8 wallet via Stripe.
+2.  `Payment Gateway Service` confirms the transaction and updates the user's balance.
+3.  When a bid is to be placed, `Bidding Engine` requests a fund lock from `Payment Gateway Service`.
+4.  If the auction is won, the locked funds are transferred.
+5.  If the auction is lost, the lock is released, and the funds become available again.
+
+---
+
+## 5. API and Integrations
+
+### 5.1. API Endpoints (API Gateway)
+
+The system exposes a RESTful API for the frontend client. All endpoints are prefixed with `/api/v1`.
+
+*   **Authentication:**
+    *   `POST /auth/register` - Register a new user.
+    *   `POST /auth/token` - Obtain a JWT token (login).
+    *   `GET /auth/google` - Initiate Google OAuth2 login.
+*   **Auctions:**
+    *   `GET /auctions` - Get a list of auctions the user is participating in.
+    *   `GET /auctions/{id}` - Get details for a specific auction.
+*   **Strategies:**
+    *   `POST /strategies` - Create a new bidding strategy.
+    *   `GET /strategies` - List all user-created strategies.
+    *   `PUT /strategies/{id}` - Update an existing strategy.
+    *   `DELETE /strategies/{id}` - Delete a strategy.
+*   **Wallet:**
+    *   `GET /wallet/balance` - Get current wallet balance.
+    *   `POST /wallet/deposit` - Initiate a deposit transaction.
+    *   `GET /wallet/transactions` - Get a history of transactions.
+
+### 5.2. External Service Integrations
+
+*   **Prozorro.Sale:** Integration is via their official REST API. Requires an API key which users can add to their profile. The `Auction Scanner` uses this API to fetch lot data. The `Bidding Engine` uses it to place bids.
+*   **CETAM:** As a public API may not be available, this integration is planned via web scraping using libraries like `BeautifulSoup` and `Scrapy`. This component will be isolated to mitigate risks associated with changes in the website's markup.
+*   **Stripe:** Used as the primary payment processor for funding user wallets. Integration is done via the official Stripe Python SDK.
+*   **Telegram:** The `Notification Service` uses the Telegram Bot API to send real-time alerts to users who have linked their Telegram account.
+
+### 5.3. Data Exchange Formats
+
+*   **Internal (API):** All internal and external API communication uses JSON.
+*   **Asynchronous (Message Broker):** Messages published to RabbitMQ are in JSON format, with a consistent envelope structure containing metadata (e.g., `event_id`, `timestamp`, `source_service`) and a `payload` with the business data.
+
+**Example RabbitMQ Message:**
+
+```json
+{
+  "event_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "event_type": "lot.discovered",
+  "timestamp": "2023-10-26T10:00:00Z",
+  "source_service": "auction-scanner",
+  "payload": {
+    "lot_id": "UA-123456",
+    "platform": "Prozorro.Sale",
+    "title": "2-bedroom apartment",
+    "region": "Kyiv",
+    "start_price": 1500000.00,
+    "currency": "UAH",
+    "auction_url": "https://prozorro.sale/auctions/UA-123456"
+  }
+}
+```
+
+---
+
+## 6. Database Design
+
+### 6.1. Database Schema
+
+The primary database is PostgreSQL. The schema is designed to be relational and normalized.
+
+**Main Tables:**
+*   `users`
+*   `wallets`
+*   `transactions`
+*   `search_filters`
+*   `strategies`
+*   `auctions`
+*   `bids`
+
+### 6.2. Data Models (Simplified)
+
+```sql
+-- Users and Wallets
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE wallets (
+    id UUID PRIMARY KEY,
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id),
+    balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
+    locked_balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
+    currency VARCHAR(3) NOT NULL DEFAULT 'UAH'
+);
+
+-- Strategies and Bidding
+CREATE TABLE strategies (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id),
+    name VARCHAR(100) NOT NULL,
+    max_bid_amount NUMERIC(15, 2) NOT NULL,
+    bid_increment_type VARCHAR(10) NOT NULL, -- 'percent' or 'fixed'
+    bid_increment_value NUMERIC(10, 2) NOT NULL
+);
+
+CREATE TABLE auctions (
+    id UUID PRIMARY KEY,
+    external_id VARCHAR(100) NOT NULL,
+    platform VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL, -- 'active', 'won', 'lost'
+    -- ... other auction details
+);
+
+CREATE TABLE bids (
+    id UUID PRIMARY KEY,
+    auction_id UUID NOT NULL REFERENCES auctions(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    amount NUMERIC(15, 2) NOT NULL,
+    placed_at TIMESTAMPZ NOT NULL DEFAULT NOW(),
+    is_winning BOOLEAN DEFAULT FALSE
+);
+```
+
+### 6.3. Relationships
+
+*   `users` 1-to-1 `wallets`
+*   `users` 1-to-many `strategies`
+*   `users` 1-to-many `bids`
+*   `auctions` 1-to-many `bids`
+
+### 6.4. Indexes and Constraints
+
+*   Indexes will be created on foreign key columns (`user_id`, `auction_id`) to speed up joins.
+*   A unique constraint will be placed on `auctions(external_id, platform)` to prevent duplicate entries.
+*   An index will be added to `users(email)` for fast lookups during login.
+*   Check constraints on `wallets` to ensure `balance` and `locked_balance` are never negative.
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+*   **JWT (JSON Web Tokens):** The primary mechanism for securing the API. After a user logs in, they receive a short-lived access token and a long-lived refresh token. The access token is sent in the `Authorization` header of each request.
+*   **OAuth 2.0:** Integration with Google Sign-In is provided as an alternative, convenient authentication method.
+
+### 7.2. Authorization Rules
+
+*   **Role-Based Access Control (RBAC):** The system implements two main roles:
+    *   `User`: Can access and manage only their own data (strategies, bids, wallet).
+    *   `Admin`: Can access all data in the system for support and moderation purposes.
+*   Authorization logic is enforced at the API Gateway and within each microservice.
+
+### 7.3. Data Protection
+
+*   **Encryption at Rest:** Sensitive data in the PostgreSQL database (e.g., user passwords, external API keys) is encrypted. Passwords are an one-way hashed using a strong algorithm like Argon2.
+*   **Encryption in Transit:** All communication between the client, API Gateway, and internal services is encrypted using TLS 1.2 or higher.
+*   **Secrets Management:** All secrets (API keys, database credentials, JWT secret keys) are managed using a secrets manager like HashiCorp Vault or AWS Secrets Manager, and are not hardcoded in the application or version control.
+
+### 7.4. Security Best Practices
+
+*   **Input Validation:** All incoming data is rigorously validated to prevent injection attacks (SQLi, XSS).
+*   **Rate Limiting:** The API Gateway enforces rate limiting to protect against brute-force attacks and DoS.
+*   **Dependency Scanning:** A CI/CD pipeline job regularly scans application dependencies for known vulnerabilities.
+*   **Regular Security Audits:** The system will undergo periodic security audits and penetration testing.
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+Deployment is automated via a CI/CD pipeline in GitLab CI. A push to the `main` branch triggers the following steps:
+1.  **Build:** A new Docker image is built for the modified service.
+2.  **Test:** Unit and integration tests are run against the new build.
+3.  **Push:** If tests pass, the Docker image is tagged and pushed to a container registry (e.g., Amazon ECR).
+4.  **Deploy:** The new image version is deployed to the Kubernetes cluster using a Helm chart, following a rolling update strategy to ensure zero downtime.
+
+### 8.2. Infrastructure Requirements
+
+*   **Cloud Provider:** AWS is the primary cloud provider.
+*   **Compute:** An Amazon EKS (Elastic Kubernetes Service) cluster to run the microservices.
+*   **Database:** Amazon RDS for PostgreSQL for a managed, scalable database solution.
+*   **Caching:** Amazon ElastiCache for Redis.
+*   **Networking:** An Application Load Balancer (ALB) to route traffic to the API Gateway. Services reside within a private VPC.
+
+### 8.3. CI/CD Pipeline
+
+A `.gitlab-ci.yml` file defines the pipeline stages.
+
+**Example Stage (Bidding Engine):**
+
+```yaml
+build-bidding-engine:
+  stage: build
+  script:
+    - docker build -t registry.example.com/fintom8/bidding-engine:$CI_COMMIT_SHA ./services/bidding-engine
+    - docker push registry.example.com/fintom8/bidding-engine:$CI_COMMIT_SHA
+
+test-bidding-engine:
+  stage: test
+  script:
+    - cd services/bidding-engine
+    - pip install -r requirements.txt
+    - pytest
+
+deploy-staging:
+  stage: deploy
+  script:
+    - helm upgrade --install bidding-engine ./charts/bidding-engine --namespace staging --set image.tag=$CI_COMMIT_SHA
+  environment:
+    name: staging
+  only:
+    - main
+```
+
+### 8.4. Environment Configuration
+
+Configuration is managed per environment (development, staging, production) and is injected into containers as environment variables.
+*   **Development:** Uses Docker Compose for local setup.
+*   **Staging:** A mirror of the production environment for testing.
+*   **Production:** The live environment on AWS EKS.
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+The testing strategy follows the "Testing Pyramid" model, emphasizing a large base of unit tests, followed by a smaller number of integration tests, and a minimal set of end-to-end (E2E) tests for critical user flows.
+
+### 9.2. Test Types
+
+*   **Unit Tests:** Each function and class is tested in isolation to verify its correctness. This is the responsibility of the developer writing the code.
+*   **Integration Tests:** These tests verify the interaction between services, such as checking if the `Bidding Engine` correctly processes a message published by the `Auction Scanner`. This is done by spinning up dependent services (e.g., RabbitMQ, a mock API) in Docker.
+*   **End-to-End (E2E) Tests:** Automated tests that simulate a real user's journey through the application, from logging in and creating a strategy to verifying that a bid was placed.
+
+### 9.3. Testing Tools
+
+*   **Unit/Integration (Backend):** `pytest`
+*   **E2E:** `Cypress`
+*   **Code Coverage:** `coverage.py`
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+*   **Metrics Collection:** Each microservice exposes a `/metrics` endpoint with key performance indicators in Prometheus format (e.g., request latency, error rates, message queue depth).
+*   **Visualization:** Grafana is used to build dashboards that visualize the metrics collected by Prometheus.
+*   **Alerting:** Prometheus Alertmanager is configured to send alerts to the engineering team (e.g., via Slack or PagerDuty) if key metrics cross predefined thresholds (e.g., 99th percentile latency > 500ms, error rate > 2%).
+
+### 10.2. Logging Strategy
+
+*   **Centralized Logging:** All microservices write structured logs (JSON format) to `stdout`. The container orchestration platform (Kubernetes) forwards these logs to a central Logstash instance.
+*   **Log Processing:** Logstash parses and enriches the logs (e.g., adding Kubernetes metadata) before storing them in Elasticsearch.
+*   **Log Analysis:** Kibana provides a web UI for searching, analyzing, and visualizing the logs, allowing for easy debugging and troubleshooting.
+
+### 10.3. Error Handling
+
+*   **Standardized Error Responses:** The API Gateway returns standardized HTTP error responses (e.g., 4xx for client errors, 5xx for server errors) with a consistent JSON payload.
+*   **Distributed Tracing:** Tools like Jaeger or OpenTelemetry will be integrated to trace requests as they travel across multiple microservices, helping to pinpoint the source of errors and performance bottlenecks.
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+To set up the local development environment, you will need Docker and Docker Compose installed.
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://gitlab.example.com/fintom8/fintom8.git
+    cd fintom8
+    ```
+2.  **Environment Variables:**
+    Copy the `.env.example` file to `.env` and populate it with the necessary configuration values (database credentials, API keys, etc.).
+    ```bash
+    cp .env.example .env
+    ```
+3.  **Build and Run:**
+    Use Docker Compose to build and start all the services.
+    ```bash
+    docker-compose up --build -d
+    ```
+    This will start all microservices, PostgreSQL, Redis, and RabbitMQ containers.
+
+### 11.2. Development Setup
+
+*   The backend services use FastAPI, which provides automatic hot-reloading. Any changes to the Python code will automatically restart the respective service within its Docker container.
+*   The frontend (React) is configured with a development server that also supports hot-reloading.
+
+### 11.3. Contribution Guidelines
+
+1.  **Create a New Branch:** Create a feature branch from the `develop` branch (e.g., `feature/USER-123-add-strategy-cloning`).
+2.  **Implement Changes:** Write your code and ensure it is well-documented.
+3.  **Add Tests:** Write unit and/or integration tests for any new functionality.
+4.  **Ensure Tests Pass:** Run the test suite locally to ensure all tests are passing.
+    ```bash
+    docker-compose exec user-service pytest
+    ```
+5.  **Submit a Merge Request:** Push your branch to GitLab and create a Merge Request targeting the `develop` branch.
+6.  **Code Review:** At least one other developer must review and approve the Merge Request before it can be merged.
