@@ -348,6 +348,44 @@ No code changes needed!
 
 ---
 
+## ☁️ Deployment
+
+### Deploy to Google Cloud Platform (GCP)
+
+Проект готовий до деплою на GCP Cloud Run. Детальні інструкції дивіться в [`DEPLOYMENT_GCP.md`](DEPLOYMENT_GCP.md).
+
+**Швидкий старт:**
+
+```bash
+# 1. Встановіть Google Cloud SDK
+# macOS: brew install google-cloud-sdk
+
+# 2. Авторизуйтеся
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# 3. Запустіть скрипт деплою
+./deploy_gcp.sh YOUR_PROJECT_ID
+```
+
+**Або вручну:**
+
+```bash
+# Білд та деплой через Cloud Build
+gcloud builds submit --config cloudbuild.yaml
+```
+
+**Що буде задеплоєно:**
+- ✅ FastAPI сервер на Cloud Run (порт 8000)
+- ✅ Streamlit UI на Cloud Run (порт 8501)
+- ✅ Автоматичне масштабування
+- ✅ Secret Manager для API ключів
+- ✅ Health checks та моніторинг
+
+Детальні інструкції: [`DEPLOYMENT_GCP.md`](DEPLOYMENT_GCP.md)
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please:

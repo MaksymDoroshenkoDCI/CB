@@ -1,0 +1,534 @@
+# Technical Documentation: Avto-Polis
+
+**Document Version:** 1.0  
+**Date:** 2023-10-27  
+**Author:** Technical Documentation Team
+
+---
+
+## 1. Introduction and Overview
+
+This document provides a comprehensive technical overview of the **Avto-Polis** system. It details the system architecture, technology stack, functionality, security measures, and guidelines for development, deployment, and maintenance.
+
+### 1.1. System Purpose and Main Goals
+
+**Avto-Polis** is an online insurance aggregator platform designed to simplify the process of selecting and purchasing vehicle insurance policies.
+
+The primary goals of the system are:
+*   **Simplify Insurance Selection:** Provide users with a single platform to compare insurance products from various providers.
+*   **Transparency:** Offer clear, side-by-side comparisons of insurance policy terms, coverage, and pricing.
+*   **Convenience:** Enable users to calculate costs, apply for, and purchase mandatory (MTPL - "автоцивілка") and other insurance policies entirely online.
+*   **User Empowerment:** Give users a personal dashboard to manage their vehicles, policies, and receive timely renewal reminders.
+
+### 1.2. Target Audience
+
+The system is designed for two primary user groups:
+
+*   **Customers (Car Owners):** Individuals who own vehicles and need to purchase or renew insurance policies. They require a simple, intuitive, and fast user interface.
+*   **Administrators:** Internal staff responsible for managing the platform's content, partner insurance companies, user applications, and system tariffs.
+
+### 1.3. Key Features Summary
+
+*   **Insurance Policy Calculator:** A tool for calculating the cost of MTPL (Mandatory Third-Party Liability) insurance based on vehicle parameters.
+*   **Insurance Offer Comparison:** Aggregates and displays offers from multiple insurance companies.
+*   **Online Policy Purchase:** A complete, end-to-end workflow for ordering and paying for an insurance policy online.
+*   **User Dashboard (Personal Cabinet):** A secure area for registered users to:
+    *   Manage a list of their vehicles.
+    *   View active and expired insurance policies.
+    *   Track order history.
+    *   Initiate policy renewals.
+*   **Renewal Reminders:** Automated notifications sent to users before their policy expiration date.
+*   **Admin Panel:** A backend interface for administrators to manage insurance partners, tariffs, and user applications.
+
+---
+
+## 2. System Architecture
+
+### 2.1. Overall Architecture Description
+
+The Avto-Polis system is designed using a **decoupled, three-tier architecture**. This approach separates the client-side presentation, server-side application logic, and data storage into distinct layers, promoting scalability, maintainability, and flexibility.
+
+*   **Presentation Layer (Frontend):** A modern Single-Page Application (SPA) that provides a rich, responsive user experience on both desktop and mobile devices.
+*   **Application Layer (Backend):** A RESTful API server that handles all business logic, data processing, user authentication, and communication with external services.
+*   **Data Layer (Database):** A relational database system responsible for the persistent storage of all application data.
+
+### 2.2. Main Components and Modules
+
+1.  **React Frontend Application:** The client-side application built with React. It communicates with the backend via REST API calls.
+2.  **Django REST API Backend:** The core of the system, built with Python and Django Rest Framework. It exposes API endpoints for all system functionalities.
+    *   **User & Auth Module:** Manages user registration, login, and JWT-based authentication.
+    *   **Vehicle Module:** Manages user vehicle data.
+    *   **Insurance Module:** Contains logic for the insurance calculator, comparison engine, and integrations with partner APIs.
+    *   **Order Module:** Handles the policy purchasing workflow and payment processing.
+    *   **Admin Module:** Provides administrative functionalities through the Django Admin Panel.
+3.  **PostgreSQL Database:** The primary data store for all user, vehicle, policy, and order information.
+4.  **External Insurance Partner APIs:** Third-party REST APIs provided by partner insurance companies to fetch real-time quotes and submit policy applications.
+5.  **Task Queue (e.g., Celery/Redis):** An asynchronous task queue to handle long-running or background processes like sending email reminders or generating policy documents.
+
+### 2.3. System Diagrams (Text-Format)
+
+#### High-Level Component Diagram
+
+```
+[User (Web/Mobile Browser)] <--> [React SPA (Frontend)]
+         |
+         | (HTTPS, REST API)
+         v
+[Django REST API (Backend)] <--> [PostgreSQL Database]
+         |
+         | (REST API)
+         v
+[External Insurance APIs]
+         |
+         | (Async Tasks)
+         v
+[Celery/Redis (Task Queue)] --> [Email Service]
+```
+
+### 2.4. Data Flow
+
+1.  **Quote Calculation:**
+    *   A user enters vehicle details into the MTPL calculator on the React frontend.
+    *   The frontend sends a POST request with the data to the `/api/v1/calculator/mtpl` endpoint on the Django backend.
+    *   The backend validates the data.
+    *   The backend makes parallel API calls to the various integrated insurance partner APIs to get quotes.
+    *   The backend aggregates the responses and returns a structured JSON list of offers to the frontend.
+2.  **Policy Purchase:**
+    *   The user selects an offer and proceeds to checkout.
+    *   The frontend collects user information and sends a POST request to `/api/v1/orders`.
+    *   The backend creates an order record in the database with a 'pending' status.
+    *   The user is redirected to a payment gateway (integration not specified, but assumed).
+    *   Upon successful payment confirmation (via webhook), the backend updates the order status to 'paid'.
+    *   The backend makes a final API call to the chosen insurance partner to formally issue the policy.
+    *   The system stores the policy details and triggers an email notification to the user.
+
+---
+
+## 3. Technology Stack
+
+| Category                  | Technology / Tool                                     | Purpose                                            |
+| ------------------------- | ----------------------------------------------------- | -------------------------------------------------- |
+| **Programming Languages** | Python 3.10+, JavaScript (ES6+)                       | Backend Logic, Frontend Logic                      |
+| **Backend Framework**     | Django 4.x, Django Rest Framework                     | Building the REST API and application logic        |
+| **Frontend Framework**    | React.js 18.x, (or Vue.js as an alternative)          | Building the user interface (SPA)                  |
+| **Database**              | PostgreSQL 14+                                        | Primary relational data storage                    |
+| **API Communication**     | REST, JSON                                            | Standard for frontend-backend & external services  |
+| **Authentication**        | JSON Web Tokens (JWT)                                 | Secure, stateless user authentication              |
+| **Asynchronous Tasks**    | Celery, Redis                                         | Background job processing (e.g., emails)           |
+| **Web Server / Gateway**  | Nginx, Gunicorn                                       | Serving static files and handling application      |
+| **Containerization**      | Docker, Docker Compose                                | Development environment consistency & deployment   |
+| **CI/CD**                 | GitHub Actions, GitLab CI, or Jenkins                 | Automated testing, building, and deployment        |
+| **Cloud Infrastructure**  | AWS (EC2, RDS, S3), DigitalOcean Droplets, or similar | Hosting the application and database               |
+
+---
+
+## 4. Functionality
+
+### 4.1. Detailed Feature Descriptions
+
+#### 4.1.1. User Account Management
+*   **Registration:** Users can create an account using an email and password.
+*   **Login:** Secure authentication using JWT.
+*   **Password Reset:** "Forgot Password" functionality via email.
+*   **User Profile:** Users can view and manage their personal information.
+
+#### 4.1.2. Personal Dashboard
+A centralized hub for users to manage their insurance-related activities.
+*   **My Vehicles:** Users can add, edit, and delete their vehicle information (make, model, year, VIN, license plate).
+*   **My Policies:** A list of all current and past policies purchased through the platform, with details like policy number, coverage period, and a link to the policy document.
+*   **Order History:** A record of all transactions.
+*   **Renewal:** A one-click or simplified flow to renew an expiring policy.
+
+#### 4.1.3. MTPL Calculator & Comparison
+*   The system provides a form to input all necessary parameters for an MTPL calculation (vehicle type, engine capacity, registration city, driver's age/experience, etc.).
+*   It fetches real-time quotes from all integrated insurance partners.
+*   Presents a clear, sortable, and filterable comparison table of the results.
+
+#### 4.1.4. Online Ordering
+*   A step-by-step wizard to guide the user through the process of purchasing a policy.
+*   Collection of required personal and vehicle data.
+*   Integration with a payment gateway for secure online payments.
+*   Automatic policy issuance upon successful payment.
+
+### 4.2. Use Cases
+
+#### Use Case 1: New User Purchases MTPL Insurance
+*   **Actor:** Unregistered User (Car Owner)
+*   **Goal:** To calculate, compare, and purchase an MTPL policy.
+*   **Workflow:**
+    1.  User navigates to the MTPL calculator page.
+    2.  User inputs vehicle and driver details.
+    3.  System displays a comparison table of offers from different insurers.
+    4.  User selects the most suitable offer and clicks "Buy".
+    5.  System prompts the user to register or log in. User registers a new account.
+    6.  User is guided through the checkout process, confirming details and providing any additional required information.
+    7.  User completes payment via the integrated payment gateway.
+    8.  System confirms payment, issues the policy via the insurer's API, and stores it in the user's dashboard.
+    9.  User receives a confirmation email with the policy document attached.
+
+#### Use Case 2: Administrator Manages Insurance Partners
+*   **Actor:** Administrator
+*   **Goal:** To add or update an insurance company's information and API credentials.
+*   **Workflow:**
+    1.  Admin logs into the Django Admin Panel.
+    2.  Admin navigates to the "Insurance Partners" section.
+    3.  Admin can add a new partner, providing a name, contact details, and secure API credentials (endpoint URL, API key).
+    4.  Admin can activate or deactivate a partner, which determines if their offers appear in the calculator results.
+    5.  Admin saves the changes. The system will now use the new/updated configuration for quote requests.
+
+---
+
+## 5. API and Integrations
+
+### 5.1. Internal REST API (Backend for Frontend)
+
+The system's frontend communicates with the backend via a versioned REST API. All data is exchanged in JSON format. Authentication is handled via JWT in the `Authorization: Bearer <token>` header.
+
+#### Example API Endpoints:
+
+*   **Authentication**
+    *   `POST /api/v1/auth/register` - Create a new user account.
+    *   `POST /api/v1/auth/token` - Obtain a JWT for a registered user.
+    *   `POST /api/v1/auth/token/refresh` - Refresh an expired access token.
+
+*   **Insurance Calculator**
+    *   `POST /api/v1/calculator/mtpl` - Submits vehicle and driver data to get a list of insurance quotes.
+    *   **Request Body Example:**
+        ```json
+        {
+          "vehicle_type": "car",
+          "engine_capacity_cc": 1598,
+          "registration_city": "Kyiv",
+          "driver_age": 35,
+          "driving_experience_years": 10
+        }
+        ```
+    *   **Success Response (200 OK) Example:**
+        ```json
+        [
+          {
+            "insurer_id": 1,
+            "insurer_name": "Alpha Insurance",
+            "premium_amount": 1850.50,
+            "currency": "UAH",
+            "policy_options": { "franchise": 2500 }
+          },
+          {
+            "insurer_id": 2,
+            "insurer_name": "Beta Secure",
+            "premium_amount": 1920.00,
+            "currency": "UAH",
+            "policy_options": { "franchise": 0 }
+          }
+        ]
+        ```
+
+*   **User Data Management**
+    *   `GET /api/v1/user/policies` - Retrieve a list of policies for the authenticated user.
+    *   `GET, POST /api/v1/user/vehicles` - List or add vehicles for the authenticated user.
+    *   `PUT, DELETE /api/v1/user/vehicles/{id}` - Update or delete a specific vehicle.
+
+### 5.2. External Service Integrations
+
+The core functionality of Avto-Polis relies on integrations with third-party APIs from partner insurance companies.
+
+*   **Integration Method:** REST APIs provided by each insurance company.
+*   **Data Exchange Format:** Primarily JSON.
+*   **Authentication:** Typically via an API Key or OAuth 2.0 client credentials, sent in the request headers.
+*   **Adapter Pattern:** The backend should implement an Adapter design pattern to handle variations in API contracts between different insurance providers. A common internal data structure will be used, and a specific adapter for each insurer will translate requests and responses between the internal format and the provider's format.
+
+---
+
+## 6. Database Design
+
+### 6.1. Database Schema
+
+The database will be designed using a relational model in PostgreSQL. The schema will be managed via Django Migrations.
+
+### 6.2. Data Models (High-Level)
+
+Here are the core tables and their key fields.
+
+**`users` Table**
+*   `id` (PK, BigInt)
+*   `email` (Varchar, Unique)
+*   `password_hash` (Varchar)
+*   `first_name` (Varchar)
+*   `last_name` (Varchar)
+*   `is_staff` (Boolean) - For admin access
+*   `created_at` (Timestamp)
+*   `updated_at` (Timestamp)
+
+**`vehicles` Table**
+*   `id` (PK, BigInt)
+*   `user_id` (FK to `users`)
+*   `make` (Varchar)
+*   `model` (Varchar)
+*   `production_year` (Integer)
+*   `vin` (Varchar, Unique)
+*   `license_plate` (Varchar)
+*   `created_at` (Timestamp)
+
+**`insurance_partners` Table**
+*   `id` (PK, Integer)
+*   `name` (Varchar, Unique)
+*   `api_endpoint_url` (Varchar)
+*   `api_key_encrypted` (Varchar)
+*   `is_active` (Boolean)
+
+**`policies` Table**
+*   `id` (PK, BigInt)
+*   `user_id` (FK to `users`)
+*   `vehicle_id` (FK to `vehicles`)
+*   `partner_id` (FK to `insurance_partners`)
+*   `policy_number` (Varchar, Unique)
+*   `start_date` (Date)
+*   `end_date` (Date)
+*   `premium_amount` (Decimal)
+*   `status` (Varchar: active, expired)
+*   `policy_document_url` (Varchar) - e.g., link to S3
+*   `created_at` (Timestamp)
+
+### 6.3. Relationships
+
+*   A `User` can have many `Vehicles`. (One-to-Many)
+*   A `User` can have many `Policies`. (One-to-Many)
+*   A `Policy` belongs to one `User`, one `Vehicle`, and one `InsurancePartner`. (Many-to-One for each)
+
+---
+
+## 7. Security
+
+### 7.1. Authentication Mechanisms
+
+*   **JWT (JSON Web Tokens):** The system will use stateless JWT-based authentication.
+    *   Upon successful login, the server issues a short-lived **access token** (~15 minutes) and a long-lived **refresh token** (~7 days).
+    *   The access token is sent in the `Authorization` header for all protected API requests.
+    *   The refresh token is stored securely (e.g., in an HttpOnly cookie) and used to obtain a new access token without requiring the user to log in again.
+
+### 7.2. Authorization Rules
+
+*   **Role-Based Access Control (RBAC):**
+    *   **Customer Role:** Can access and manage only their own data (vehicles, policies, orders).
+    *   **Administrator Role:** Has full access to the Django Admin Panel to manage partners, view all orders, and manage system settings.
+*   API endpoints will be protected using permission classes in Django Rest Framework to enforce these rules.
+
+### 7.3. Data Protection
+
+*   **HTTPS/TLS:** All communication between the client and server must be encrypted using HTTPS.
+*   **Password Hashing:** User passwords will be securely hashed using a strong, modern algorithm like Argon2 or PBKDF2 (Django's default).
+*   **Data Encryption:** Sensitive data, such as external API keys, will be encrypted at rest (e.g., using Django's encrypted fields or a secrets management service like HashiCorp Vault or AWS Secrets Manager).
+*   **Input Validation:** All user-provided data will be rigorously validated on both the frontend and backend to prevent injection attacks (SQLi, XSS).
+
+---
+
+## 8. Deployment and Infrastructure
+
+### 8.1. Deployment Process
+
+Deployment will be automated via a CI/CD pipeline. A typical deployment to production involves these steps:
+1.  Developer pushes code to the `main` branch.
+2.  CI/CD pipeline triggers.
+3.  **Build Stage:** A Docker image for the Django application is built.
+4.  **Test Stage:** Automated tests (unit, integration) are run against the build.
+5.  **Push Stage:** If tests pass, the Docker image is pushed to a container registry (e.g., Docker Hub, AWS ECR).
+6.  **Deploy Stage:** The new image is pulled onto the production server(s) and the application containers are restarted using a zero-downtime strategy (e.g., blue-green deployment).
+7.  Database migrations are run automatically as part of the deployment script.
+
+### 8.2. Infrastructure Requirements
+
+*   **Web Server:** 1+ instances of a Linux server (e.g., AWS EC2 t3.medium or equivalent) running Docker.
+*   **Database Server:** A managed PostgreSQL instance (e.g., AWS RDS) for reliability, backups, and scaling.
+*   **Cache/Broker:** A managed Redis instance (e.g., AWS ElastiCache) for Celery and caching.
+*   **Load Balancer:** To distribute traffic if scaling to multiple web servers.
+*   **Object Storage:** An S3-compatible service for storing generated policy documents and other static assets.
+
+### 8.3. CI/CD Pipeline
+
+A CI/CD pipeline will be configured using GitHub Actions.
+
+**Example `.github/workflows/deploy.yml` (simplified):**
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: yourusername/avto-polis:latest
+
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /path/to/app
+          docker-compose pull
+          docker-compose up -d --no-deps backend
+          docker exec -it avto-polis-backend-1 python manage.py migrate
+```
+
+### 8.4. Environment Configuration
+
+The application will be configured using environment variables. A `.env.example` file will be maintained in the repository.
+
+**Example `.env.example`:**
+```dotenv
+# Application Settings
+DEBUG=False
+SECRET_KEY=your-django-secret-key-here
+ALLOWED_HOSTS=avto-polis.com,www.avto-polis.com
+
+# Database Settings
+DB_NAME=avtopolis
+DB_USER=avtopolis_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Redis Settings
+REDIS_URL=redis://localhost:6379/0
+
+# JWT Settings
+JWT_ACCESS_TOKEN_LIFETIME_SECONDS=900 # 15 minutes
+JWT_REFRESH_TOKEN_LIFETIME_SECONDS=604800 # 7 days
+```
+
+---
+
+## 9. Testing
+
+### 9.1. Testing Strategy
+
+A multi-layered testing strategy will be employed to ensure code quality, reliability, and correctness.
+
+### 9.2. Test Types
+
+*   **Unit Tests:** To test individual functions, methods, and components in isolation. Django's built-in test framework and `pytest` will be used. Coverage target: >85%.
+*   **Integration Tests:** To test the interaction between different components, especially API endpoints. These tests will verify that endpoints behave as expected, handle authentication correctly, and return the right data and status codes.
+*   **End-to-End (E2E) Tests:** To simulate real user workflows in a browser. This will cover critical paths like user registration, policy calculation, and the complete purchase flow.
+
+### 9.3. Testing Tools
+
+*   **Backend Testing:** `pytest`, `pytest-django`, `factory-boy` (for creating test data).
+*   **Frontend Testing:** `Jest`, `React Testing Library`.
+*   **E2E Testing:** `Cypress` or `Playwright`.
+
+---
+
+## 10. Monitoring and Logging
+
+### 10.1. Monitoring Approach
+
+*   **Application Performance Monitoring (APM):** Use a service like Sentry, Datadog, or New Relic to monitor API response times, database query performance, and identify bottlenecks. Sentry is also excellent for real-time error tracking.
+*   **Infrastructure Monitoring:** Use tools like Prometheus with Grafana or a cloud provider's built-in monitoring (e.g., AWS CloudWatch) to track CPU usage, memory, disk space, and network traffic on servers and databases.
+
+### 10.2. Logging Strategy
+
+*   **Structured Logging:** The application will generate structured logs (e.g., in JSON format) containing a timestamp, log level, message, and contextual information (e.g., user ID, request ID).
+*   **Centralized Logging:** Logs from all application containers and system services will be aggregated into a centralized logging platform like the ELK Stack (Elasticsearch, Logstash, Kibana) or a SaaS solution like Loggly or Papertrail. This allows for easy searching, filtering, and analysis.
+
+### 10.3. Error Handling
+
+*   **Graceful Degradation:** If a specific insurance partner's API is down, the system should handle the error gracefully, log it, and exclude that insurer from the comparison results without crashing the entire calculation process.
+*   **Standardized Error Responses:** The API will use standard HTTP status codes and provide clear, consistent error messages in the response body.
+    *   **Example Error Response (400 Bad Request):**
+        ```json
+        {
+          "error": {
+            "code": "validation_error",
+            "message": "Invalid vehicle data provided.",
+            "details": {
+              "engine_capacity_cc": ["This field must be a positive integer."]
+            }
+          }
+        }
+        ```
+
+---
+
+## 11. Developer Guide
+
+### 11.1. Getting Started
+
+This guide provides instructions for setting up a local development environment.
+
+### 11.2. Development Setup
+
+1.  **Prerequisites:**
+    *   Git
+    *   Python 3.10+
+    *   Docker and Docker Compose
+    *   Node.js and npm (for frontend)
+
+2.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/your-org/avto-polis.git
+    cd avto-polis
+    ```
+
+3.  **Backend Setup:**
+    *   Navigate to the `backend` directory.
+    *   Create a `.env` file from the `.env.example` and fill in local database credentials.
+    *   Start the services (Django, PostgreSQL, Redis) using Docker Compose:
+        ```bash
+        cd backend/
+        docker-compose up --build -d
+        ```
+    *   Run database migrations:
+        ```bash
+        docker-compose exec backend python manage.py migrate
+        ```
+    *   Create a superuser for admin access:
+        ```bash
+        docker-compose exec backend python manage.py createsuperuser
+        ```
+    *   The backend API will be available at `http://localhost:8000`.
+
+4.  **Frontend Setup:**
+    *   Navigate to the `frontend` directory.
+    *   Install dependencies:
+        ```bash
+        cd frontend/
+        npm install
+        ```
+    *   Start the development server:
+        ```bash
+        npm start
+        ```
+    *   The frontend application will be available at `http://localhost:3000`.
+
+### 11.3. Contribution Guidelines
+
+*   **Branching Strategy:** Use a GitFlow-like model.
+    *   `main`: Represents the production-ready state.
+    *   `develop`: The main development branch.
+    *   Feature branches (`feature/my-new-feature`) should be created from `develop`.
+*   **Pull Requests (PRs):**
+    *   All code must be submitted via a Pull Request to the `develop` branch.
+    *   PRs must pass all CI checks (linting, tests).
+    *   PRs require at least one review from another team member before being merged.
+*   **Coding Standards:** Follow PEP 8 for Python and a standard linter configuration (e.g., Prettier) for JavaScript/React.

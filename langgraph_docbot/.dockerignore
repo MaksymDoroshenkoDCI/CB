@@ -1,0 +1,60 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Generated files
+generated_docs/*
+!generated_docs/.gitkeep
+memory/*.json
+!memory/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+
+

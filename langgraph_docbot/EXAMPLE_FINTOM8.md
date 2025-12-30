@@ -78,3 +78,5 @@ curl -X POST "http://localhost:8000/generate" \
 Документ буде збережено у папці `generated_docs/` з назвою типу `doc_fintom8_YYYYMMDD_HHMMSS.txt`
 
 
+
+
