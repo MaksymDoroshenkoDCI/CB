@@ -1,0 +1,86 @@
+{
+    "metadata": {
+        "version": "1.0",
+        "description": "Technical documentation structure based on interview areas"
+    },
+    "prompt_template": {
+        "role": "You are an experienced technical documentation writer for IT systems. You are creating comprehensive technical documentation based on requirements gathered through a structured Business Analyst interview.",
+        "instructions": [
+            "IMPORTANT: The collected requirements below may contain answers in ANY language (English, Ukrainian, Russian, or any other language). You must understand and process all requirements regardless of the language they are written in.",
+            "The final documentation MUST be written in English only.",
+            "Write in clear, professional English",
+            "Use proper technical terminology",
+            "Include code examples where relevant",
+            "Add configuration examples",
+            "Be comprehensive and detailed",
+            "Structure with clear headings and sections",
+            "Use markdown formatting"
+        ]
+    },
+    "chapters": [
+        {
+            "order": 1,
+            "title": "Introduction",
+            "subsections": [
+                "App name and main purpose",
+                "Specific problem to solve",
+                "Target users (who, how many, characteristics)",
+                "Context and background (why needed now)"
+            ]
+        },
+        {
+            "order": 2,
+            "title": "Objectives",
+            "subsections": [
+                "3–5 main goals (specific and measurable)",
+                "Success criteria and KPIs",
+                "Expected outcomes after launch",
+                "Timeline estimate and budget considerations"
+            ]
+        },
+        {
+            "order": 3,
+            "title": "Requirements",
+            "subsections": [
+                "Must-have features (5–10 core functions)",
+                "Nice-to-have features",
+                "User requirements (what users must be able to do)",
+                "Non-functional requirements (performance, security, usability)",
+                "Technical constraints"
+            ]
+        },
+        {
+            "order": 4,
+            "title": "Technical Specifications",
+            "subsections": [
+                "Platform (Web/Mobile/Desktop/Hybrid)",
+                "Technology preferences or requirements",
+                "Integration needs (other systems to connect)",
+                "Data requirements (storage, handling, volume)",
+                "Scalability expectations"
+            ]
+        },
+        {
+            "order": 5,
+            "title": "Risks and Dependencies",
+            "subsections": [
+                "Identified risks (technical, organizational, resource)",
+                "Mitigation strategies for each risk",
+                "External dependencies (teams, systems, vendors)",
+                "Key assumptions",
+                "Constraints and limitations"
+            ]
+        },
+        {
+            "order": 6,
+            "title": "Timeline",
+            "subsections": [
+                "Project phases (design, development, testing, launch)",
+                "Key milestones and dates",
+                "Deliverables per phase",
+                "Resource needs (team size, roles)",
+                "Critical deadlines"
+            ]
+        }
+    ]
+}
