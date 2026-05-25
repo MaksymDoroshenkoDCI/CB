@@ -1,5 +1,5 @@
 """
-Simplified LangGraph workflow:
+LangGraph workflow for generating project documentation:
 Conversation Agent -> Documentation Agent -> Save -> END
 """
 from langgraph.graph import StateGraph, END

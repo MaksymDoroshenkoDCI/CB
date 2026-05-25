@@ -30,6 +30,9 @@ def conversation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     2. Processes user answer
     3. Selects next question
     """
+    if state.get("conversation_complete"):
+        return state
+
     # 1. Initialize logic
     dialog_data = load_dialog_structure()
     questions = dialog_data.get("questions", [])

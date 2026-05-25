@@ -56,7 +56,12 @@ gcloud secrets add-iam-policy-binding google-api-key \
 
 # Build and deploy using Cloud Build
 echo "🐳 Building and deploying with Cloud Build..."
-gcloud builds submit --config cloudbuild.yaml
+BUCKET_NAME="${PROJECT_ID}-build-sources"
+if ! gcloud storage buckets describe gs://$BUCKET_NAME &>/dev/null; then
+    echo "🪣 Creating Cloud Storage bucket gs://$BUCKET_NAME for build sources..."
+    gcloud storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=us-central1
+fi
+gcloud builds submit --config cloudbuild.yaml --gcs-source-staging-dir=gs://$BUCKET_NAME/source
 
 # Get service URLs
 echo "📊 Getting service URLs..."
